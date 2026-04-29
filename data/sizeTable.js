@@ -10,24 +10,25 @@ export const SIZE_TABLE = {
   100: 2.5,
 };
 
-// Carriles que ocupa cada medida en el ancho del trailer (1 = ancho completo, 2 = mitad).
-// Las cajas chicas (50–65") caben de a dos lado-a-lado. Las grandes (75"+) usan
-// el ancho completo del trailer.
+// Todas las tarimas pairean lado-a-lado en el trailer (2 carriles). El trailer
+// real permite 1 tarima a la izquierda + 1 a la derecha en cada posición.
+// La cifra "meters" es la longitud que ocupa cada tarima en el sentido del
+// trailer (no el ancho).
 export const SIZE_LANES = {
   50: 2,
   55: 2,
   58: 2,
   65: 2,
-  75: 1,
-  86: 1,
-  100: 1,
+  75: 2,
+  86: 2,
+  100: 2,
 };
 
 export const SIZE_OPTIONS = Object.entries(SIZE_TABLE)
   .map(([inches, meters]) => ({
     inches: Number(inches),
     meters,
-    lanes: SIZE_LANES[Number(inches)] || 1,
-    label: `${inches}" (${meters} m${SIZE_LANES[Number(inches)] === 2 ? ' · 2 carriles' : ''})`,
+    lanes: SIZE_LANES[Number(inches)] || 2,
+    label: `${inches}" (${meters} m)`,
   }))
   .sort((a, b) => a.inches - b.inches);

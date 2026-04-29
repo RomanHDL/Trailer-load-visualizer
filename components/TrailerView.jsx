@@ -56,10 +56,8 @@ export default function TrailerView({ orders, draft, trailerLength }) {
     <div className="trailer-wrap">
       <div className="trailer-meta">
         <span className="meta-item">
-          <span className="meta-dot meta-dot-lane2" /> Carril doble (cajas chicas)
-        </span>
-        <span className="meta-item">
-          <span className="meta-dot meta-dot-lane1" /> Ancho completo (cajas grandes)
+          <span className="meta-dot meta-dot-lane2" />
+          Cada tarima ocupa medio carril · 2 tarimas en paralelo
         </span>
       </div>
 

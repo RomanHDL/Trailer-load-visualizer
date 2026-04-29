@@ -1,20 +1,21 @@
 import { useState } from 'react';
-import { SIZE_OPTIONS } from '../data/sizeTable';
+import { SIZE_OPTIONS, SIZE_TABLE } from '../data/sizeTable';
 
-// Maneja el "draft" de una orden: el # orden se queda fijo mientras
-// el usuario agrega cajas. Al final dispara onSave para persistir + PDF.
+// Maneja el draft de una orden: el # orden se queda fijo mientras el usuario
+// agrega cajas. Permite agregar N cajas a la vez (cantidad).
 
 export default function OrderForm({
   draft,
   onStart,
-  onAddBox,
-  onRemoveBox,
+  onAddBoxes,
+  onRemoveBoxOfSize,
   onSave,
   onCancel,
   saving,
 }) {
   const [orderNumber, setOrderNumber] = useState('');
   const [inches, setInches] = useState(SIZE_OPTIONS[0].inches);
+  const [qty, setQty] = useState(1);
 
   // Estado A: aún no se ingresó el # orden
   if (!draft) {
@@ -40,28 +41,47 @@ export default function OrderForm({
             required
           />
         </div>
-        <button type="submit" className="btn-primary">
+        <button type="submit" className="btn-primary btn-block">
           Iniciar orden →
         </button>
       </form>
     );
   }
 
-  // Estado B: orden activa, agregando cajas
+  // Estado B: orden activa
   const totalMeters = draft.boxes.reduce((s, b) => s + b.meters, 0);
+
+  // Agrupa cajas por medida para mostrar chips compactos
+  const groups = {};
+  draft.boxes.forEach((b) => {
+    if (!groups[b.inches]) {
+      groups[b.inches] = { inches: b.inches, meters: b.meters, qty: 0 };
+    }
+    groups[b.inches].qty += 1;
+  });
+  const grouped = Object.values(groups).sort((a, b) => a.inches - b.inches);
+
+  function clampQty(n) {
+    const v = Math.max(1, Math.min(200, Math.floor(Number(n) || 1)));
+    return v;
+  }
 
   return (
     <div className="form-active">
       <div className="active-header">
-        <div>
+        <div className="active-id">
           <span className="label-mini">Orden activa</span>
           <h2>#{draft.orderNumber}</h2>
         </div>
         <div className="active-stats">
-          <span className="badge">{draft.boxes.length} cajas</span>
-          <span className="badge badge-primary">
-            {totalMeters.toFixed(2)} m
-          </span>
+          <div className="stat-tile">
+            <span className="stat-num">{draft.boxes.length}</span>
+            <span className="stat-lbl">cajas</span>
+          </div>
+          <div className="stat-tile stat-tile-primary">
+            <span className="stat-num">{totalMeters.toFixed(2)}</span>
+            <span className="stat-lbl">metros</span>
+          </div>
         </div>
       </div>
 
@@ -69,11 +89,13 @@ export default function OrderForm({
         className="form form-add"
         onSubmit={(e) => {
           e.preventDefault();
-          onAddBox(Number(inches));
+          const n = clampQty(qty);
+          onAddBoxes(Number(inches), n);
+          setQty(1);
         }}
       >
         <div className="field">
-          <label>Agregar caja</label>
+          <label>Medida</label>
           <select
             value={inches}
             onChange={(e) => setInches(Number(e.target.value))}
@@ -85,24 +107,70 @@ export default function OrderForm({
             ))}
           </select>
         </div>
-        <button type="submit" className="btn-primary">
-          + Agregar
+
+        <div className="field field-qty">
+          <label>Cantidad</label>
+          <div className="qty-stepper">
+            <button
+              type="button"
+              className="qty-btn"
+              onClick={() => setQty((q) => clampQty(q - 1))}
+              aria-label="Restar"
+            >
+              −
+            </button>
+            <input
+              type="number"
+              inputMode="numeric"
+              pattern="[0-9]*"
+              value={qty}
+              min="1"
+              max="200"
+              onChange={(e) => setQty(clampQty(e.target.value))}
+            />
+            <button
+              type="button"
+              className="qty-btn"
+              onClick={() => setQty((q) => clampQty(q + 1))}
+              aria-label="Sumar"
+            >
+              +
+            </button>
+          </div>
+        </div>
+
+        <button type="submit" className="btn-primary btn-block">
+          + Agregar {qty > 1 ? `${qty} cajas` : 'caja'}
+          <span className="btn-sub">
+            ({(qty * SIZE_TABLE[inches]).toFixed(2)} m)
+          </span>
         </button>
       </form>
 
-      {draft.boxes.length > 0 && (
+      {grouped.length > 0 && (
         <div className="boxes-chips">
-          {draft.boxes.map((b, i) => (
-            <span key={i} className="chip">
-              {b.inches}"
+          {grouped.map((g) => (
+            <div key={g.inches} className="chip-group">
               <button
                 type="button"
-                onClick={() => onRemoveBox(i)}
-                aria-label="quitar"
+                className="chip-btn chip-btn-minus"
+                onClick={() => onRemoveBoxOfSize(g.inches)}
+                aria-label="Quitar uno"
               >
-                ×
+                −
               </button>
-            </span>
+              <span className="chip-label">
+                <strong>{g.qty}</strong>× {g.inches}"
+              </span>
+              <button
+                type="button"
+                className="chip-btn chip-btn-plus"
+                onClick={() => onAddBoxes(g.inches, 1)}
+                aria-label="Agregar uno"
+              >
+                +
+              </button>
+            </div>
           ))}
         </div>
       )}

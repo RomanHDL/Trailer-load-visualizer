@@ -11,7 +11,7 @@ const TRAILER_LENGTH = Number(
 
 export default function Home() {
   const [orders, setOrders] = useState([]);
-  const [draft, setDraft] = useState(null); // { orderNumber, boxes: [{inches, meters}] }
+  const [draft, setDraft] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -35,17 +35,27 @@ export default function Home() {
     setDraft({ orderNumber, boxes: [] });
   }
 
-  function addBoxToDraft(inches) {
+  function addBoxesToDraft(inches, qty = 1) {
     const meters = SIZE_TABLE[inches];
     if (!meters) return;
-    setDraft((d) => ({ ...d, boxes: [...d.boxes, { inches, meters }] }));
+    const n = Math.max(1, Math.floor(qty));
+    const newBoxes = Array.from({ length: n }, () => ({ inches, meters }));
+    setDraft((d) => ({ ...d, boxes: [...d.boxes, ...newBoxes] }));
   }
 
-  function removeBoxFromDraft(idx) {
-    setDraft((d) => ({
-      ...d,
-      boxes: d.boxes.filter((_, i) => i !== idx),
-    }));
+  // Quita la última caja agregada de esa medida (afecta visualmente la posición más a la derecha)
+  function removeOneBoxOfSize(inches) {
+    setDraft((d) => {
+      let lastIdx = -1;
+      for (let i = d.boxes.length - 1; i >= 0; i--) {
+        if (d.boxes[i].inches === inches) {
+          lastIdx = i;
+          break;
+        }
+      }
+      if (lastIdx === -1) return d;
+      return { ...d, boxes: d.boxes.filter((_, i) => i !== lastIdx) };
+    });
   }
 
   function cancelDraft() {
@@ -76,7 +86,6 @@ export default function Home() {
       }
       const created = await res.json();
 
-      // Generar PDF antes de cerrar el draft
       const { generateOrderPdf } = await import('../lib/pdfGenerator');
       await generateOrderPdf({
         order: created,
@@ -116,38 +125,82 @@ export default function Home() {
     setDraft(null);
   }
 
+  // Cálculos globales
+  const totalAll = orders.reduce((s, o) => s + o.totalMeters, 0)
+    + (draft ? draft.boxes.reduce((s, b) => s + b.meters, 0) : 0);
+  const remaining = TRAILER_LENGTH - totalAll;
+  const overflow = totalAll > TRAILER_LENGTH;
+  const usedPct = Math.min(100, (totalAll / TRAILER_LENGTH) * 100);
+
   return (
     <>
       <Head>
-        <title>Trailer Load Visualizer · Mundial</title>
+        <title>Trailer Load Visualizer</title>
         <meta
           name="viewport"
           content="width=device-width, initial-scale=1, viewport-fit=cover"
         />
-        <meta name="theme-color" content="#0f172a" />
+        <meta name="theme-color" content="#0b1220" />
       </Head>
 
       <main className="page">
         <header className="topbar">
           <div className="brand">
-            <h1>Trailer Load Visualizer</h1>
+            <h1>
+              Trailer <span className="brand-accent">Load</span> Visualizer
+            </h1>
             <p className="subtitle">
-              Largo total: {TRAILER_LENGTH} m · Vista superior
+              Vista superior · Largo {TRAILER_LENGTH} m
             </p>
           </div>
-          <img
-            src="/mundial-logo.webp"
-            alt="Mundial"
-            className="brand-logo"
-          />
         </header>
+
+        {/* Hero stats */}
+        <section className="hero-stats">
+          <div className="hero-card">
+            <span className="hero-lbl">Total usado</span>
+            <span className="hero-num">
+              {totalAll.toFixed(2)}
+              <small>m</small>
+            </span>
+          </div>
+          <div className="hero-card">
+            <span className="hero-lbl">
+              {overflow ? 'Sobresale' : 'Disponible'}
+            </span>
+            <span
+              className={`hero-num ${
+                overflow ? 'hero-num-red' : 'hero-num-green'
+              }`}
+            >
+              {Math.abs(remaining).toFixed(2)}
+              <small>m</small>
+            </span>
+          </div>
+          <div className="hero-card hero-card-wide">
+            <div className="progress-row">
+              <span className="hero-lbl">Capacidad</span>
+              <span
+                className={`hero-pct ${overflow ? 'pct-red' : 'pct-green'}`}
+              >
+                {((totalAll / TRAILER_LENGTH) * 100).toFixed(0)}%
+              </span>
+            </div>
+            <div className="progress-bar">
+              <div
+                className={`progress-fill ${overflow ? 'pf-red' : 'pf-green'}`}
+                style={{ width: `${usedPct}%` }}
+              />
+            </div>
+          </div>
+        </section>
 
         <section className="panel">
           <OrderForm
             draft={draft}
             onStart={startDraft}
-            onAddBox={addBoxToDraft}
-            onRemoveBox={removeBoxFromDraft}
+            onAddBoxes={addBoxesToDraft}
+            onRemoveBoxOfSize={removeOneBoxOfSize}
             onSave={saveDraft}
             onCancel={cancelDraft}
             saving={saving}
@@ -155,7 +208,9 @@ export default function Home() {
         </section>
 
         <section className="panel panel-trailer">
-          <h2>Trailer</h2>
+          <h2 className="section-title">
+            <span className="section-dot" /> Trailer
+          </h2>
           <TrailerView
             orders={orders}
             draft={draft}
@@ -165,7 +220,10 @@ export default function Home() {
 
         <section className="panel">
           <div className="panel-header">
-            <h2>Órdenes guardadas ({orders.length})</h2>
+            <h2 className="section-title">
+              <span className="section-dot" /> Órdenes guardadas
+              <span className="count-badge">{orders.length}</span>
+            </h2>
             {orders.length > 0 && (
               <button className="btn-ghost btn-sm" onClick={resetAll}>
                 Borrar todas

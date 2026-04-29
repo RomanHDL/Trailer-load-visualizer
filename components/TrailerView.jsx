@@ -2,20 +2,21 @@
 // de cajas y las dibuja en línea. Cajas de la misma orden comparten color.
 
 const ORDER_COLORS = [
-  '#2563eb', '#0891b2', '#7c3aed', '#db2777',
-  '#ea580c', '#65a30d', '#0d9488', '#9333ea',
-  '#0369a1', '#be185d',
+  '#3b82f6', '#06b6d4', '#8b5cf6', '#ec4899',
+  '#f97316', '#84cc16', '#14b8a6', '#a855f7',
+  '#0ea5e9', '#f43f5e',
 ];
 
+const DRAFT_COLOR = '#fbbf24';
+
 export default function TrailerView({ orders, draft, trailerLength }) {
-  // Construye la lista plana de cajas con ref a su orden
   const sequence = [];
   orders.forEach((o, idx) => {
     o.boxes.forEach((b) => {
       sequence.push({
         ...b,
         orderNumber: o.orderNumber,
-        colorIdx: idx,
+        color: ORDER_COLORS[idx % ORDER_COLORS.length],
         isDraft: false,
       });
     });
@@ -25,7 +26,7 @@ export default function TrailerView({ orders, draft, trailerLength }) {
       sequence.push({
         ...b,
         orderNumber: draft.orderNumber,
-        colorIdx: orders.length,
+        color: DRAFT_COLOR,
         isDraft: true,
       });
     });
@@ -33,7 +34,6 @@ export default function TrailerView({ orders, draft, trailerLength }) {
 
   const totalUsed = sequence.reduce((s, b) => s + b.meters, 0);
   const overflow = totalUsed > trailerLength;
-  const remaining = trailerLength - totalUsed;
 
   let cursor = 0;
   const placed = sequence.map((b, i) => {
@@ -45,71 +45,93 @@ export default function TrailerView({ orders, draft, trailerLength }) {
       key: i,
       start,
       end: cursor,
-      color: exceedsLimit
-        ? '#dc2626'
-        : ORDER_COLORS[b.colorIdx % ORDER_COLORS.length],
+      color: exceedsLimit ? '#ef4444' : b.color,
       exceedsLimit,
     };
   });
 
   const visualMax = Math.max(trailerLength, totalUsed, 0.01);
+  const ticks = Array.from({ length: Math.ceil(visualMax) }, (_, i) => i + 1);
 
   return (
     <div className="trailer-wrap">
-      <div className="trailer-stats">
-        <span>
-          Usado <strong>{totalUsed.toFixed(2)} m</strong> /{' '}
-          {trailerLength.toFixed(2)} m
-        </span>
-        <span className={overflow ? 'pill pill-red' : 'pill pill-green'}>
-          {overflow
-            ? `Sobresale ${(totalUsed - trailerLength).toFixed(2)} m`
-            : `Sobra ${remaining.toFixed(2)} m`}
-        </span>
-      </div>
-
       <div className="trailer-scroll">
         <div
-          className={`trailer ${overflow ? 'overflow' : 'ok'}`}
+          className={`trailer-stage ${overflow ? 'overflow' : 'ok'}`}
           style={{
             width: `${(visualMax / trailerLength) * 100}%`,
             minWidth: '100%',
           }}
         >
-          <div
-            className="trailer-limit"
-            style={{ left: `${(trailerLength / visualMax) * 100}%` }}
-          >
-            <span>LÍMITE</span>
+          {/* Cabeza tractor (lado izquierdo - frente) */}
+          <div className="trailer-cab" aria-hidden="true">
+            <span>FRENTE</span>
           </div>
 
-          {Array.from({ length: Math.ceil(visualMax) }).map((_, i) => (
-            <div
-              key={i}
-              className="trailer-tick"
-              style={{ left: `${((i + 1) / visualMax) * 100}%` }}
-            >
-              <span>{i + 1}m</span>
-            </div>
-          ))}
-
-          {placed.map((b) => (
-            <div
-              key={b.key}
-              className={`box animate-in ${b.isDraft ? 'box-draft' : ''}`}
-              style={{
-                left: `${(b.start / visualMax) * 100}%`,
-                width: `${(b.meters / visualMax) * 100}%`,
-                background: b.color,
-              }}
-              title={`Orden ${b.orderNumber} • ${b.inches}" • ${b.meters} m`}
-            >
-              <div className="box-label">
-                <strong>{b.orderNumber}</strong>
-                <span>{b.inches}"</span>
+          {/* Cuerpo principal del trailer */}
+          <div className="trailer-body">
+            {/* Líneas guía cada metro */}
+            {ticks.map((m) => (
+              <div
+                key={m}
+                className={`trailer-tick ${
+                  m === Math.floor(trailerLength) ? 'trailer-tick-major' : ''
+                }`}
+                style={{ left: `${(m / visualMax) * 100}%` }}
+              >
+                <span>{m}m</span>
               </div>
+            ))}
+
+            {/* Marca del límite del trailer */}
+            <div
+              className="trailer-limit"
+              style={{ left: `${(trailerLength / visualMax) * 100}%` }}
+            >
+              <span className="limit-tag">LÍMITE {trailerLength}m</span>
             </div>
-          ))}
+
+            {/* Cajas */}
+            {placed.map((b) => (
+              <div
+                key={b.key}
+                className={`box animate-in ${b.isDraft ? 'box-draft' : ''} ${
+                  b.exceedsLimit ? 'box-over' : ''
+                }`}
+                style={{
+                  left: `${(b.start / visualMax) * 100}%`,
+                  width: `${(b.meters / visualMax) * 100}%`,
+                  background: b.color,
+                }}
+                title={`Orden ${b.orderNumber} • ${b.inches}" • ${b.meters} m`}
+              >
+                <div className="box-label">
+                  <strong>{b.orderNumber}</strong>
+                  <span>{b.inches}"</span>
+                </div>
+              </div>
+            ))}
+
+            {/* Empty state */}
+            {placed.length === 0 && (
+              <div className="trailer-empty">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none">
+                  <path
+                    d="M3 7h13v10H3zM16 10h4l1 4v3h-5z M7 17a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM18 17a2 2 0 1 0 0 4 2 2 0 0 0 0-4z"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+                <span>Trailer vacío</span>
+              </div>
+            )}
+          </div>
+
+          {/* Puertas (lado derecho) */}
+          <div className="trailer-doors" aria-hidden="true">
+            <span>PUERTAS</span>
+          </div>
         </div>
       </div>
     </div>

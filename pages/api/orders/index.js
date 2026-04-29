@@ -16,32 +16,53 @@ export default async function handler(req, res) {
   if (req.method === 'POST') {
     try {
       const { orderNumber, boxes } = req.body || {};
-      if (!orderNumber || !Array.isArray(boxes) || boxes.length === 0) {
+      const trimmedOrderNumber = String(orderNumber || '').trim();
+
+      if (!trimmedOrderNumber) {
+        return res.status(400).json({ error: 'Número de orden vacío' });
+      }
+      if (!Array.isArray(boxes) || boxes.length === 0) {
         return res
           .status(400)
-          .json({ error: 'Falta # orden o no hay cajas en la orden' });
+          .json({ error: 'La orden no tiene cajas' });
+      }
+      if (boxes.length > 500) {
+        return res
+          .status(400)
+          .json({ error: 'Demasiadas cajas en una sola orden (>500)' });
       }
 
-      // Validar todas las cajas contra la tabla
-      const validatedBoxes = boxes.map((b) => {
-        const meters = SIZE_TABLE[b.inches];
+      // Validar todas las cajas contra la tabla. El meters se recomputa
+      // desde SIZE_TABLE para garantizar consistencia (no se confía en input).
+      const validatedBoxes = boxes.map((b, i) => {
+        const inchesNum = Number(b.inches);
+        const meters = SIZE_TABLE[inchesNum];
         if (meters == null) {
-          throw new Error(`Medida ${b.inches}" fuera de tabla`);
+          throw new Error(
+            `Caja ${i + 1}: medida "${b.inches}" no está en la tabla`
+          );
         }
-        return { inches: Number(b.inches), meters };
+        return { inches: inchesNum, meters };
       });
 
       const totalMeters = validatedBoxes.reduce((s, b) => s + b.meters, 0);
 
       const created = await Order.create({
-        orderNumber: String(orderNumber).trim(),
+        orderNumber: trimmedOrderNumber,
         boxes: validatedBoxes,
         totalMeters,
         status: 'saved',
       });
 
-      return res.status(201).json(created);
+      // Re-leer para confirmar persistencia y devolver el doc completo
+      const persisted = await Order.findById(created._id).lean();
+      if (!persisted) {
+        throw new Error('La orden no quedó persistida en la base');
+      }
+
+      return res.status(201).json(persisted);
     } catch (err) {
+      console.error('[POST /api/orders] error:', err);
       return res.status(500).json({ error: err.message });
     }
   }

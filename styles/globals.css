@@ -900,6 +900,56 @@ button:disabled { opacity: 0.45; cursor: not-allowed; }
   font-size: 14px;
 }
 
+/* ===== Toast / notificación ===== */
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: calc(20px + env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--surface);
+  border: 1px solid var(--border-2);
+  border-left: 4px solid var(--primary);
+  border-radius: var(--radius-sm);
+  padding: 12px 18px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  z-index: 100;
+  max-width: calc(100vw - 32px);
+  animation: toastIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.toast-success { border-left-color: var(--success); }
+.toast-error   { border-left-color: var(--danger); }
+.toast-warn    { border-left-color: var(--warning); }
+
+.toast-icon {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 14px;
+  flex-shrink: 0;
+}
+.toast-success .toast-icon { background: var(--success); color: white; }
+.toast-error .toast-icon { background: var(--danger); color: white; }
+.toast-warn .toast-icon { background: var(--warning); color: #0b1220; }
+
+.toast-msg { line-height: 1.35; }
+
+@keyframes toastIn {
+  from { transform: translate(-50%, 30px); opacity: 0; }
+  to   { transform: translate(-50%, 0); opacity: 1; }
+}
+
 /* =========================================
    Tablet (>= 720px)
    ========================================= */
@@ -957,10 +1007,16 @@ button:disabled { opacity: 0.45; cursor: not-allowed; }
    Mobile small (<= 480px)
    ========================================= */
 @media (max-width: 480px) {
+  .page { padding: 14px 12px calc(80px + env(safe-area-inset-bottom)); }
   .panel { padding: 14px; border-radius: 12px; }
+
+  .topbar { margin-bottom: 14px; }
+  .hero-stats { gap: 8px; margin-bottom: 12px; }
+  .hero-card { padding: 12px 14px; }
+
   .trailer-stage {
-    height: 160px;
-    grid-template-columns: 28px 1fr 28px;
+    height: 180px;
+    grid-template-columns: 30px 1fr 30px;
   }
   .trailer-cab span, .trailer-doors span { font-size: 8px; letter-spacing: 0.12em; }
   .box-label { font-size: 9px; }
@@ -968,9 +1024,52 @@ button:disabled { opacity: 0.45; cursor: not-allowed; }
   .box-full .box-label { font-size: 10px; }
   .box-full .box-label strong { font-size: 11px; }
   .limit-tag { font-size: 9px; padding: 3px 7px; }
+
   .stat-tile { padding: 6px 10px; min-width: 60px; }
   .stat-num { font-size: 18px; }
+  .stat-lbl { font-size: 9px; }
+
+  .active-header { padding: 12px 14px; }
+  .active-id h2 { font-size: 22px; }
+
   .order-list .size { width: 100%; margin-left: 0; }
   .order-body { max-width: 100%; }
   .trailer-meta { font-size: 10px; gap: 10px; }
+
+  .lanes-status { grid-template-columns: 1fr 1fr; gap: 6px; }
+  .lane-stat { padding: 7px 10px; }
+  .lane-stat-num { font-size: 14px; }
+
+  /* Form add: stepper + button stacked clean */
+  .form-add { gap: 10px; }
+
+  /* Action row: prominente botón Guardar full width */
+  .action-row { grid-template-columns: 1fr; }
+  .action-row .btn-success { order: -1; }
+
+  .toast {
+    left: 12px;
+    right: 12px;
+    transform: none;
+    max-width: none;
+    bottom: calc(12px + env(safe-area-inset-bottom));
+    padding: 12px 14px;
+    font-size: 13px;
+  }
+  @keyframes toastIn {
+    from { transform: translateY(30px); opacity: 0; }
+    to   { transform: translateY(0); opacity: 1; }
+  }
+}
+
+/* Mobile muy chico (<= 360px - iPhone SE) */
+@media (max-width: 360px) {
+  .brand h1 { font-size: 20px; }
+  .hero-num { font-size: 20px; }
+  .trailer-stage {
+    height: 165px;
+    grid-template-columns: 24px 1fr 24px;
+  }
+  .trailer-cab span, .trailer-doors span { font-size: 7px; }
+  .stat-tile { padding: 6px 8px; min-width: 52px; }
 }

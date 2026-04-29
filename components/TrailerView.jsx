@@ -1,41 +1,64 @@
-// Vista superior del trailer (estilo blueprint)
-// El trailer se renderiza horizontal. Las cajas se acomodan en línea de izquierda a derecha.
-// Si la suma de cajas excede el largo total, se marcan en rojo.
+// Vista superior. Aplana todas las órdenes (saved + draft) en una secuencia
+// de cajas y las dibuja en línea. Cajas de la misma orden comparten color.
 
-const COLORS = [
+const ORDER_COLORS = [
   '#2563eb', '#0891b2', '#7c3aed', '#db2777',
   '#ea580c', '#65a30d', '#0d9488', '#9333ea',
+  '#0369a1', '#be185d',
 ];
 
-export default function TrailerView({ orders, trailerLength }) {
-  const totalUsed = orders.reduce((s, o) => s + o.meters, 0);
+export default function TrailerView({ orders, draft, trailerLength }) {
+  // Construye la lista plana de cajas con ref a su orden
+  const sequence = [];
+  orders.forEach((o, idx) => {
+    o.boxes.forEach((b) => {
+      sequence.push({
+        ...b,
+        orderNumber: o.orderNumber,
+        colorIdx: idx,
+        isDraft: false,
+      });
+    });
+  });
+  if (draft && draft.boxes.length) {
+    draft.boxes.forEach((b) => {
+      sequence.push({
+        ...b,
+        orderNumber: draft.orderNumber,
+        colorIdx: orders.length,
+        isDraft: true,
+      });
+    });
+  }
+
+  const totalUsed = sequence.reduce((s, b) => s + b.meters, 0);
   const overflow = totalUsed > trailerLength;
   const remaining = trailerLength - totalUsed;
 
-  // Cada caja recibe su offset acumulado en metros
   let cursor = 0;
-  const boxes = orders.map((o, i) => {
+  const placed = sequence.map((b, i) => {
     const start = cursor;
-    cursor += o.meters;
-    const exceedsLimit = start + o.meters > trailerLength;
+    cursor += b.meters;
+    const exceedsLimit = start + b.meters > trailerLength;
     return {
-      ...o,
+      ...b,
+      key: i,
       start,
       end: cursor,
-      color: exceedsLimit ? '#dc2626' : COLORS[i % COLORS.length],
+      color: exceedsLimit
+        ? '#dc2626'
+        : ORDER_COLORS[b.colorIdx % ORDER_COLORS.length],
       exceedsLimit,
     };
   });
 
-  // Escala visual: el trailer ocupa 100% del ancho del contenedor.
-  // Si hay overflow, el contenedor se extiende para mostrar lo que sobresale.
-  const visualMax = Math.max(trailerLength, totalUsed);
+  const visualMax = Math.max(trailerLength, totalUsed, 0.01);
 
   return (
     <div className="trailer-wrap">
       <div className="trailer-stats">
         <span>
-          Usado: <strong>{totalUsed.toFixed(2)} m</strong> /{' '}
+          Usado <strong>{totalUsed.toFixed(2)} m</strong> /{' '}
           {trailerLength.toFixed(2)} m
         </span>
         <span className={overflow ? 'pill pill-red' : 'pill pill-green'}>
@@ -49,19 +72,17 @@ export default function TrailerView({ orders, trailerLength }) {
         <div
           className={`trailer ${overflow ? 'overflow' : 'ok'}`}
           style={{
-            // El ancho se basa en el máximo entre trailer y carga real
             width: `${(visualMax / trailerLength) * 100}%`,
             minWidth: '100%',
           }}
         >
-          {/* Marca del límite del trailer */}
           <div
             className="trailer-limit"
             style={{ left: `${(trailerLength / visualMax) * 100}%` }}
-            title="Límite del trailer"
-          />
+          >
+            <span>LÍMITE</span>
+          </div>
 
-          {/* Líneas guía cada metro */}
           {Array.from({ length: Math.ceil(visualMax) }).map((_, i) => (
             <div
               key={i}
@@ -72,11 +93,10 @@ export default function TrailerView({ orders, trailerLength }) {
             </div>
           ))}
 
-          {/* Cajas */}
-          {boxes.map((b) => (
+          {placed.map((b) => (
             <div
-              key={b._id}
-              className="box animate-in"
+              key={b.key}
+              className={`box animate-in ${b.isDraft ? 'box-draft' : ''}`}
               style={{
                 left: `${(b.start / visualMax) * 100}%`,
                 width: `${(b.meters / visualMax) * 100}%`,

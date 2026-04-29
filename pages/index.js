@@ -4,6 +4,7 @@ import OrderForm from '../components/OrderForm';
 import TrailerView from '../components/TrailerView';
 import OrderList from '../components/OrderList';
 import { SIZE_TABLE } from '../data/sizeTable';
+import { packBoxes } from '../lib/packing';
 
 const TRAILER_LENGTH = Number(
   process.env.NEXT_PUBLIC_TRAILER_LENGTH || 15.9
@@ -125,9 +126,11 @@ export default function Home() {
     setDraft(null);
   }
 
-  // Cálculos globales
-  const totalAll = orders.reduce((s, o) => s + o.totalMeters, 0)
-    + (draft ? draft.boxes.reduce((s, b) => s + b.meters, 0) : 0);
+  // Cálculos globales con packing 2-carriles
+  const allBoxes = [];
+  orders.forEach((o) => o.boxes.forEach((b) => allBoxes.push(b)));
+  if (draft) draft.boxes.forEach((b) => allBoxes.push(b));
+  const { totalUsed: totalAll, totalLinear } = packBoxes(allBoxes);
   const remaining = TRAILER_LENGTH - totalAll;
   const overflow = totalAll > TRAILER_LENGTH;
   const usedPct = Math.min(100, (totalAll / TRAILER_LENGTH) * 100);

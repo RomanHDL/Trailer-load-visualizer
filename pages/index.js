@@ -215,15 +215,18 @@ export default function Home() {
     }
   }
 
+  // La confirmación se maneja inline en el modal del historial.
+  // Devuelve true si la orden fue eliminada, false si hubo error.
   async function deleteOrder(id) {
-    if (!confirm('¿Eliminar esta orden definitivamente?')) return;
     try {
       const res = await fetch(`/api/orders/${id}`, { method: 'DELETE' });
       if (!res.ok && res.status !== 204) throw new Error('Error al eliminar');
       setOrders((prev) => prev.filter((o) => o._id !== id));
       showToast('Orden eliminada', 'success');
+      return true;
     } catch (e) {
       showToast('No se pudo eliminar: ' + e.message, 'error');
+      return false;
     }
   }
 

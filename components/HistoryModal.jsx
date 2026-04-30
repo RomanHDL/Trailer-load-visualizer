@@ -4,11 +4,14 @@ export default function HistoryModal({ open, onClose, onReprint, onDelete }) {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(false);
   const [filter, setFilter] = useState('all'); // 'all' | 'active' | 'archived'
+  const [pendingDeleteId, setPendingDeleteId] = useState(null);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     if (!open) return;
     let cancelled = false;
     setLoading(true);
+    setPendingDeleteId(null); // reset al abrir
     fetch('/api/orders?history=1')
       .then((r) => r.json())
       .then((data) => {
@@ -23,7 +26,6 @@ export default function HistoryModal({ open, onClose, onReprint, onDelete }) {
     };
   }, [open]);
 
-  // Bloquear scroll del body cuando el modal está abierto
   useEffect(() => {
     if (!open) return;
     const prev = document.body.style.overflow;
@@ -41,9 +43,24 @@ export default function HistoryModal({ open, onClose, onReprint, onDelete }) {
     return true;
   });
 
-  function handleDelete(id) {
-    onDelete(id);
-    setOrders((prev) => prev.filter((o) => o._id !== id));
+  async function confirmDelete(id) {
+    if (deleting) return;
+    setDeleting(true);
+    try {
+      const ok = await onDelete(id);
+      // Solo remover del estado local SI realmente se eliminó en el server.
+      // Si onDelete retorna false (cancelado o error), la orden queda.
+      if (ok) {
+        setOrders((prev) => prev.filter((o) => o._id !== id));
+      }
+    } finally {
+      setDeleting(false);
+      setPendingDeleteId(null);
+    }
+  }
+
+  function cancelDelete() {
+    setPendingDeleteId(null);
   }
 
   return (
@@ -57,9 +74,7 @@ export default function HistoryModal({ open, onClose, onReprint, onDelete }) {
         <div className="modal-header">
           <div>
             <h2>Historial de órdenes</h2>
-            <p className="modal-sub">
-              {orders.length} órdenes en total
-            </p>
+            <p className="modal-sub">{orders.length} órdenes en total</p>
           </div>
           <button
             className="modal-close"
@@ -107,10 +122,14 @@ export default function HistoryModal({ open, onClose, onReprint, onDelete }) {
                   dateStyle: 'short',
                   timeStyle: 'short',
                 });
+                const isPending = pendingDeleteId === o._id;
+
                 return (
                   <li
                     key={o._id}
-                    className={o.archivedAt ? 'history-archived' : ''}
+                    className={`${o.archivedAt ? 'history-archived' : ''} ${
+                      isPending ? 'history-pending-delete' : ''
+                    }`}
                   >
                     <div className="history-head">
                       <span className="history-num">
@@ -139,18 +158,42 @@ export default function HistoryModal({ open, onClose, onReprint, onDelete }) {
                     </div>
 
                     <div className="history-actions">
-                      <button
-                        className="btn-primary btn-sm"
-                        onClick={() => onReprint(o)}
-                      >
-                        PDF
-                      </button>
-                      <button
-                        className="btn-ghost btn-sm"
-                        onClick={() => handleDelete(o._id)}
-                      >
-                        Eliminar
-                      </button>
+                      {isPending ? (
+                        <>
+                          <span className="confirm-label">
+                            ¿Eliminar definitivamente?
+                          </span>
+                          <button
+                            className="btn-ghost btn-sm"
+                            onClick={cancelDelete}
+                            disabled={deleting}
+                          >
+                            Cancelar
+                          </button>
+                          <button
+                            className="btn-danger btn-sm"
+                            onClick={() => confirmDelete(o._id)}
+                            disabled={deleting}
+                          >
+                            {deleting ? 'Eliminando…' : 'Sí, eliminar'}
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <button
+                            className="btn-primary btn-sm"
+                            onClick={() => onReprint(o)}
+                          >
+                            PDF
+                          </button>
+                          <button
+                            className="btn-ghost btn-sm"
+                            onClick={() => setPendingDeleteId(o._id)}
+                          >
+                            Eliminar
+                          </button>
+                        </>
+                      )}
                     </div>
                   </li>
                 );

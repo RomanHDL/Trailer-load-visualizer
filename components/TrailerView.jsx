@@ -75,13 +75,11 @@ export default function TrailerView({ orders, draft, trailerLength }) {
           {/* HITCH (enganche) */}
           <div className="truck-hitch" aria-hidden="true" />
 
-          {/* TRAILER */}
+          {/* TRAILER — siempre a 100% del contenedor (sin scroll horizontal).
+              Cuando hay overflow, las cajas se escalan a visualMax y la zona
+              roja marca el espacio que sobresale del límite. */}
           <div
             className={`trailer-stage ${overflow ? 'overflow' : 'ok'}`}
-            style={{
-              width: `${(visualMax / trailerLength) * 100}%`,
-              minWidth: '100%',
-            }}
           >
             <div className="trailer-cab" aria-hidden="true">
               <span>FRENTE</span>

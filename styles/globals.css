@@ -579,12 +579,8 @@ button:disabled { opacity: 0.45; cursor: not-allowed; }
 .meta-arrow { color: var(--accent); font-weight: 800; font-size: 14px; }
 
 .trailer-scroll {
-  overflow-x: auto;
   padding: 30px 0 36px;
-  -webkit-overflow-scrolling: touch;
 }
-.trailer-scroll::-webkit-scrollbar { height: 6px; }
-.trailer-scroll::-webkit-scrollbar-thumb { background: var(--border-2); border-radius: 3px; }
 
 /* ===== Camión completo (tractor + hitch + trailer) ===== */
 .truck-stage {
@@ -1303,19 +1299,19 @@ button:disabled { opacity: 0.45; cursor: not-allowed; }
    Tablet (>= 720px)
    ========================================= */
 @media (min-width: 720px) {
-  .page { padding: 28px 28px 96px; }
+  .page { padding: 22px 22px 80px; }
 
-  .topbar { margin-bottom: 24px; }
+  .topbar { margin-bottom: 18px; }
 
   .hero-stats {
     grid-template-columns: 1fr 1fr 2fr;
-    gap: 16px;
-    margin-bottom: 20px;
+    gap: 12px;
+    margin-bottom: 14px;
   }
   .hero-card-wide { grid-column: auto; }
-  .hero-card { padding: 18px 22px; }
-  .panel { padding: 22px; margin-bottom: 18px; }
-  .panel-trailer { padding: 24px 22px 28px; }
+  .hero-card { padding: 14px 18px; }
+  .panel { padding: 16px; margin-bottom: 12px; }
+  .panel-trailer { padding: 16px 16px 20px; }
 
   .form-start { grid-template-columns: 1fr auto; align-items: end; }
   .form-start .btn-primary { min-width: 180px; }
@@ -1351,55 +1347,48 @@ button:disabled { opacity: 0.45; cursor: not-allowed; }
    Desktop (>= 1024px)
    ========================================= */
 @media (min-width: 1024px) {
-  .page { padding: 32px 36px 100px; }
+  .page { padding: 26px 26px 90px; }
 
-  .truck-stage { height: 260px; }
-  .truck-tractor { width: 100px; height: 180px; }
-  .trailer-stage { height: 180px; }
+  .truck-stage { height: 240px; }
+  .truck-tractor { width: 96px; height: 170px; }
+  .trailer-stage { height: 170px; }
 
-  .panel { padding: 28px; margin-bottom: 20px; }
-  .panel-trailer { padding: 28px 28px 32px; }
-  .panel h2 { font-size: 17px; }
+  .panel { padding: 18px; margin-bottom: 14px; }
+  .panel-trailer { padding: 18px 18px 22px; }
 
-  .hero-stats { gap: 18px; margin-bottom: 24px; }
-  .hero-card { padding: 22px 26px; }
-  .hero-num { font-size: 36px; }
+  .hero-stats { gap: 14px; margin-bottom: 16px; }
+  .hero-card { padding: 16px 20px; }
+  .hero-num { font-size: 30px; }
 
-  .brand h1 { font-size: 32px; }
+  .brand h1 { font-size: 28px; }
 
-  /* Form gana más aire */
-  .form-add { gap: 16px; }
-  .active-header { padding: 18px 22px; }
-  .active-id h2 { font-size: 28px; }
-  .stat-tile { padding: 10px 18px; min-width: 80px; }
-  .stat-num { font-size: 24px; }
+  .form-add { gap: 14px; }
+  .active-header { padding: 14px 18px; }
+  .active-id h2 { font-size: 24px; }
+  .stat-tile { padding: 8px 14px; min-width: 72px; }
+  .stat-num { font-size: 21px; }
 }
 
-/* Pantallas grandes — paneles full pantalla */
 @media (min-width: 1440px) {
-  .page { padding: 40px 48px 110px; }
+  .page { padding: 32px 32px 100px; }
 
-  .truck-stage { height: 290px; }
-  .truck-tractor { width: 120px; height: 210px; }
-  .trailer-stage { height: 210px; }
+  .truck-stage { height: 270px; }
+  .truck-tractor { width: 110px; height: 200px; }
+  .trailer-stage { height: 200px; }
 
-  .panel { padding: 32px; margin-bottom: 22px; border-radius: 16px; }
-  .panel-trailer { padding: 32px 32px 36px; }
+  .panel { padding: 22px; margin-bottom: 16px; }
+  .panel-trailer { padding: 22px 22px 26px; }
 
-  .hero-stats { gap: 22px; margin-bottom: 28px; }
-  .hero-card { padding: 26px 30px; border-radius: 16px; }
-  .hero-num { font-size: 42px; }
-  .hero-lbl { font-size: 12px; }
+  .hero-stats { gap: 16px; }
+  .hero-card { padding: 18px 22px; }
+  .hero-num { font-size: 34px; }
 
-  .brand h1 { font-size: 36px; }
+  .brand h1 { font-size: 30px; }
 
-  .lane-stat { padding: 12px 20px; }
-  .lane-stat-num { font-size: 17px; }
-
-  .box-label { font-size: 12px; }
-  .box-label strong { font-size: 13px; }
-  .box-full .box-label { font-size: 13px; }
-  .box-full .box-label strong { font-size: 14px; }
+  .box-label { font-size: 11px; }
+  .box-label strong { font-size: 12px; }
+  .box-full .box-label { font-size: 12px; }
+  .box-full .box-label strong { font-size: 13px; }
 }
 
 /* =========================================

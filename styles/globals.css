@@ -61,7 +61,7 @@ input[type=number] { -moz-appearance: textfield; }
 
 /* ===== Layout ===== */
 .page {
-  max-width: 1700px;
+  max-width: 1250px;
   margin: 0 auto;
   padding: 18px 14px calc(80px + env(safe-area-inset-bottom));
 }

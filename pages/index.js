@@ -94,6 +94,28 @@ export default function Home() {
     setDraft((d) => ({ ...d, boxes: [...d.boxes, ...newBoxes] }));
   }
 
+  // Reordenar una caja del draft de fromIdx → toIdx (drag-and-drop)
+  function reorderDraftBox(fromIdx, toIdx) {
+    setDraft((d) => {
+      if (!d || !Array.isArray(d.boxes)) return d;
+      if (
+        fromIdx < 0 ||
+        fromIdx >= d.boxes.length ||
+        toIdx < 0 ||
+        toIdx > d.boxes.length ||
+        fromIdx === toIdx
+      ) {
+        return d;
+      }
+      const newBoxes = [...d.boxes];
+      const [moved] = newBoxes.splice(fromIdx, 1);
+      // Si el target estaba a la derecha del removido, ajustamos índice
+      const adjustedTo = toIdx > fromIdx ? toIdx - 1 : toIdx;
+      newBoxes.splice(adjustedTo, 0, moved);
+      return { ...d, boxes: newBoxes };
+    });
+  }
+
   function removeOneBoxOfSize(inches) {
     setDraft((d) => {
       let lastIdx = -1;
@@ -380,6 +402,7 @@ export default function Home() {
             orders={orders}
             draft={draft}
             trailerLength={TRAILER_LENGTH}
+            onReorderDraft={reorderDraftBox}
           />
           {!loading && orders.length === 0 && !draft && (
             <p className="empty empty-trailer">

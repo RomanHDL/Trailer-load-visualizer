@@ -15,7 +15,9 @@ export default function OrderForm({
 }) {
   const [orderNumber, setOrderNumber] = useState('');
   const [inches, setInches] = useState(SIZE_OPTIONS[0].inches);
-  const [qty, setQty] = useState(1);
+  // qtyStr es string para permitir estado vacío mientras el usuario escribe.
+  // El número final se calcula a partir de qtyStr en submit/+/-/blur.
+  const [qtyStr, setQtyStr] = useState('1');
 
   // Estado A: aún no se ingresó el # orden
   if (!draft) {
@@ -65,6 +67,9 @@ export default function OrderForm({
     const v = Math.max(1, Math.min(200, Math.floor(Number(n) || 1)));
     return v;
   }
+  // Para cálculos derivados (ej. metros del botón). Si está vacío, asumimos 1
+  // SOLO para los previews/labels — al hacer submit revalidamos contra qtyStr.
+  const qty = Math.max(1, Math.min(200, Math.floor(Number(qtyStr) || 1)));
 
   return (
     <div className="form-active">
@@ -89,9 +94,9 @@ export default function OrderForm({
         className="form form-add"
         onSubmit={(e) => {
           e.preventDefault();
-          const n = clampQty(qty);
+          const n = clampQty(qtyStr);
           onAddBoxes(Number(inches), n);
-          setQty(1);
+          setQtyStr('1');
         }}
       >
         <div className="field">
@@ -114,7 +119,9 @@ export default function OrderForm({
             <button
               type="button"
               className="qty-btn"
-              onClick={() => setQty((q) => clampQty(q - 1))}
+              onClick={() =>
+                setQtyStr(String(clampQty((Number(qtyStr) || 1) - 1)))
+              }
               aria-label="Restar"
             >
               −
@@ -123,15 +130,27 @@ export default function OrderForm({
               type="number"
               inputMode="numeric"
               pattern="[0-9]*"
-              value={qty}
+              value={qtyStr}
               min="1"
               max="200"
-              onChange={(e) => setQty(clampQty(e.target.value))}
+              // Sin clamp en onChange — permite borrar todo y reescribir
+              onChange={(e) => {
+                // Permitir solo dígitos (o vacío)
+                const v = e.target.value.replace(/[^0-9]/g, '');
+                setQtyStr(v);
+              }}
+              onFocus={(e) => e.target.select()}
+              onBlur={() => {
+                if (qtyStr === '' || Number(qtyStr) < 1) setQtyStr('1');
+                else if (Number(qtyStr) > 200) setQtyStr('200');
+              }}
             />
             <button
               type="button"
               className="qty-btn"
-              onClick={() => setQty((q) => clampQty(q + 1))}
+              onClick={() =>
+                setQtyStr(String(clampQty((Number(qtyStr) || 0) + 1)))
+              }
               aria-label="Sumar"
             >
               +

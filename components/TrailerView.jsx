@@ -1,3 +1,4 @@
+import { useRef, useState } from 'react';
 import { packBoxes } from '../lib/packing';
 
 const ORDER_COLORS = [
@@ -7,8 +8,19 @@ const ORDER_COLORS = [
 ];
 
 const DRAFT_COLOR = '#fbbf24';
+const DRAG_THRESHOLD = 5; // px de movimiento mínimo para considerar drag
 
-export default function TrailerView({ orders, draft, trailerLength }) {
+export default function TrailerView({
+  orders,
+  draft,
+  trailerLength,
+  onReorderDraft,
+}) {
+  const bodyRef = useRef(null);
+  const [drag, setDrag] = useState(null);
+  // drag = { draftIdx, pointerId, startX, startY, currentX, currentY, moved }
+
+  // Construir secuencia. Marcar draftIdx para los del draft.
   const sequence = [];
   orders.forEach((o, idx) => {
     o.boxes.forEach((b) => {
@@ -21,19 +33,19 @@ export default function TrailerView({ orders, draft, trailerLength }) {
     });
   });
   if (draft && draft.boxes.length) {
-    draft.boxes.forEach((b) => {
+    draft.boxes.forEach((b, i) => {
       sequence.push({
         ...b,
         orderNumber: draft.orderNumber,
         color: DRAFT_COLOR,
         isDraft: true,
+        draftIdx: i,
       });
     });
   }
 
   const { placed, totalUsed, lane1, lane2 } = packBoxes(sequence);
   const overflow = totalUsed > trailerLength;
-
   placed.forEach((b) => {
     b.exceedsLimit = b.end > trailerLength;
     if (b.exceedsLimit) b.color = '#ef4444';
@@ -47,6 +59,76 @@ export default function TrailerView({ orders, draft, trailerLength }) {
   if (limitPct > 88) limitLabelTransform = 'translateX(-100%)';
   else if (limitPct < 12) limitLabelTransform = 'translateX(0)';
 
+  // Cajas del draft solamente, en orden de aparición en placed
+  const draftPlaced = placed.filter((p) => p.isDraft);
+
+  // ===== DRAG HANDLERS =====
+  function handlePointerDown(e, b) {
+    if (!b.isDraft || !onReorderDraft) return;
+    e.preventDefault();
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId);
+    } catch {}
+    setDrag({
+      draftIdx: b.draftIdx,
+      pointerId: e.pointerId,
+      startX: e.clientX,
+      startY: e.clientY,
+      currentX: e.clientX,
+      currentY: e.clientY,
+      moved: false,
+    });
+  }
+
+  function handlePointerMove(e) {
+    if (!drag || drag.pointerId !== e.pointerId) return;
+    const dx = e.clientX - drag.startX;
+    const dy = e.clientY - drag.startY;
+    const moved =
+      drag.moved || Math.abs(dx) > DRAG_THRESHOLD || Math.abs(dy) > DRAG_THRESHOLD;
+    setDrag({ ...drag, currentX: e.clientX, currentY: e.clientY, moved });
+  }
+
+  function handlePointerUp(e) {
+    if (!drag) {
+      setDrag(null);
+      return;
+    }
+    if (!drag.moved) {
+      setDrag(null);
+      return;
+    }
+    if (!bodyRef.current || !draft) {
+      setDrag(null);
+      return;
+    }
+    const rect = bodyRef.current.getBoundingClientRect();
+    const cursorX = e.clientX - rect.left;
+    const cursorMeters = Math.max(
+      0,
+      Math.min(visualMax, (cursorX / rect.width) * visualMax)
+    );
+
+    // Encontrar a qué posición DENTRO DEL DRAFT corresponde el cursor
+    let targetDraftIdx = draft.boxes.length;
+    for (let i = 0; i < draftPlaced.length; i++) {
+      const p = draftPlaced[i];
+      const center = p.start + p.meters / 2;
+      if (cursorMeters < center) {
+        targetDraftIdx = p.draftIdx;
+        break;
+      }
+    }
+    if (targetDraftIdx !== drag.draftIdx) {
+      onReorderDraft(drag.draftIdx, targetDraftIdx);
+    }
+    setDrag(null);
+  }
+
+  function handlePointerCancel() {
+    setDrag(null);
+  }
+
   return (
     <div className="trailer-wrap">
       <div className="trailer-meta">
@@ -54,15 +136,15 @@ export default function TrailerView({ orders, draft, trailerLength }) {
           <span className="meta-dot meta-dot-lane2" />
           Cada tarima ocupa medio carril · 2 tarimas en paralelo
         </span>
-        <span className="meta-item">
-          <span className="meta-arrow">→</span>
-          Sentido de carga: izquierda hacia derecha
-        </span>
+        {draft && draft.boxes.length > 1 && (
+          <span className="meta-item meta-item-hint">
+            Arrastrá las tarimas amarillas para reordenarlas
+          </span>
+        )}
       </div>
 
       <div className="trailer-scroll">
         <div className="truck-stage">
-          {/* TRACTOR (cabina del camión) */}
           <div className="truck-tractor" aria-hidden="true">
             <div className="tractor-windshield" />
             <div className="tractor-body" />
@@ -72,20 +154,14 @@ export default function TrailerView({ orders, draft, trailerLength }) {
             <div className="wheel wheel-tractor-rr" />
           </div>
 
-          {/* HITCH (enganche) */}
           <div className="truck-hitch" aria-hidden="true" />
 
-          {/* TRAILER — siempre a 100% del contenedor (sin scroll horizontal).
-              Cuando hay overflow, las cajas se escalan a visualMax y la zona
-              roja marca el espacio que sobresale del límite. */}
-          <div
-            className={`trailer-stage ${overflow ? 'overflow' : 'ok'}`}
-          >
+          <div className={`trailer-stage ${overflow ? 'overflow' : 'ok'}`}>
             <div className="trailer-cab" aria-hidden="true">
               <span>FRENTE</span>
             </div>
 
-            <div className="trailer-body">
+            <div className="trailer-body" ref={bodyRef}>
               <div className="lane-divider" aria-hidden="true" />
 
               {ticks.map((m) => (
@@ -130,18 +206,41 @@ export default function TrailerView({ orders, draft, trailerLength }) {
                   ? 'box-lane1'
                   : 'box-lane2';
 
+                const isDragging =
+                  drag && b.isDraft && b.draftIdx === drag.draftIdx;
+                const dragStyle = isDragging
+                  ? {
+                      transform: `translate(${drag.currentX - drag.startX}px, ${
+                        drag.currentY - drag.startY
+                      }px) scale(1.05)`,
+                      zIndex: 100,
+                      opacity: 0.85,
+                      cursor: 'grabbing',
+                      transition: 'none',
+                    }
+                  : {};
+
                 return (
                   <div
                     key={b.idx}
                     className={`box animate-in ${laneClass} ${
-                      b.isDraft ? 'box-draft' : ''
-                    } ${b.exceedsLimit ? 'box-over' : ''}`}
+                      b.isDraft ? 'box-draggable' : ''
+                    } ${b.isDraft ? 'box-draft' : ''} ${
+                      b.exceedsLimit ? 'box-over' : ''
+                    } ${isDragging ? 'box-dragging' : ''}`}
                     style={{
                       left: `${left}%`,
                       width: `${width}%`,
                       background: b.color,
+                      ...dragStyle,
                     }}
-                    title={`Orden ${b.orderNumber} • ${b.inches}" • ${b.meters} m`}
+                    title={`Orden ${b.orderNumber} • ${b.inches}" • ${b.meters} m${
+                      b.isDraft ? ' · arrastrá para reordenar' : ''
+                    }`}
+                    onPointerDown={(e) => handlePointerDown(e, b)}
+                    onPointerMove={handlePointerMove}
+                    onPointerUp={handlePointerUp}
+                    onPointerCancel={handlePointerCancel}
                   >
                     <div className="box-label">
                       <strong>{b.orderNumber}</strong>
@@ -171,7 +270,6 @@ export default function TrailerView({ orders, draft, trailerLength }) {
               <div className="door-handle" />
             </div>
 
-            {/* Ruedas del trailer (2 ejes traseros + 1 delantero) */}
             <div className="wheel wheel-trailer-fl" />
             <div className="wheel wheel-trailer-fr" />
             <div className="wheel wheel-trailer-ml" />

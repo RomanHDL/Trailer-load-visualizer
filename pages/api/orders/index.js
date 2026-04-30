@@ -6,9 +6,13 @@ export default async function handler(req, res) {
   await dbConnect();
 
   if (req.method === 'GET') {
-    // Solo órdenes guardadas (no drafts)
-    const orders = await Order.find({ status: 'saved' })
-      .sort({ createdAt: 1 })
+    const filter = { status: 'saved' };
+    // ?history=1 → trae todas (incluyendo archivadas). Por defecto: solo activas.
+    if (!req.query.history) {
+      filter.$or = [{ archivedAt: null }, { archivedAt: { $exists: false } }];
+    }
+    const orders = await Order.find(filter)
+      .sort({ createdAt: req.query.history ? -1 : 1 })
       .lean();
     return res.status(200).json(orders);
   }

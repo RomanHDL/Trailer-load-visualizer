@@ -22,6 +22,9 @@ const OrderSchema = new mongoose.Schema(
     boxes: { type: [BoxSchema], default: [] },
     totalMeters: { type: Number, default: 0 },
     status: { type: String, enum: ['draft', 'saved'], default: 'draft' },
+    // archivedAt: si está set, la orden ya no está en el trailer "activo" pero
+    // se conserva en el historial para consulta / re-impresión de PDF.
+    archivedAt: { type: Date, default: null },
   },
   { timestamps: true }
 );

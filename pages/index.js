@@ -2,7 +2,7 @@ import { useEffect, useState, useRef } from 'react';
 import Head from 'next/head';
 import OrderForm from '../components/OrderForm';
 import TrailerView from '../components/TrailerView';
-import OrderList from '../components/OrderList';
+import HistoryModal from '../components/HistoryModal';
 import { SIZE_TABLE } from '../data/sizeTable';
 import { packBoxes } from '../lib/packing';
 
@@ -13,14 +13,15 @@ const TRAILER_LENGTH = Number(
 const DRAFT_STORAGE_KEY = 'trailer:draft:v1';
 
 export default function Home() {
-  const [orders, setOrders] = useState([]);
+  const [orders, setOrders] = useState([]); // solo activas
   const [draft, setDraft] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
   const [toast, setToast] = useState(null);
   const draftHydrated = useRef(false);
 
-  // Restaurar draft de localStorage en el primer mount
   useEffect(() => {
     if (typeof window === 'undefined') return;
     try {
@@ -36,13 +37,12 @@ export default function Home() {
         }
       }
     } catch (e) {
-      // ignore
+      /* ignore */
     } finally {
       draftHydrated.current = true;
     }
   }, []);
 
-  // Persistir draft en localStorage cada vez que cambia (evita perder trabajo)
   useEffect(() => {
     if (typeof window === 'undefined') return;
     if (!draftHydrated.current) return;
@@ -53,7 +53,7 @@ export default function Home() {
         localStorage.removeItem(DRAFT_STORAGE_KEY);
       }
     } catch (e) {
-      // ignore
+      /* ignore */
     }
   }, [draft]);
 
@@ -72,7 +72,7 @@ export default function Home() {
       setOrders(Array.isArray(data) ? data : []);
     } catch (e) {
       console.error(e);
-      showToast('No se pudo cargar las órdenes guardadas', 'error');
+      showToast('No se pudo cargar las órdenes activas', 'error');
     } finally {
       setLoading(false);
     }
@@ -124,15 +124,12 @@ export default function Home() {
     let savedOrder = null;
     let nextOrders = null;
 
-    // ---- Paso 1: guardar en servidor (lo más importante) ----
     try {
       const res = await fetch('/api/orders', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           orderNumber: draft.orderNumber,
-          // Solo mandamos inches; el server recomputa meters desde SIZE_TABLE
-          // para asegurar consistencia de datos.
           boxes: draft.boxes.map((b) => ({ inches: b.inches })),
         }),
       });
@@ -144,7 +141,6 @@ export default function Home() {
 
       savedOrder = await res.json();
 
-      // Verificación: la orden volvió completa (todas las cajas)
       if (
         !savedOrder._id ||
         !Array.isArray(savedOrder.boxes) ||
@@ -153,11 +149,10 @@ export default function Home() {
         throw new Error(
           `La orden se guardó incompleta (${
             savedOrder.boxes?.length ?? 0
-          }/${draft.boxes.length} tarimas). Revisar.`
+          }/${draft.boxes.length} tarimas).`
         );
       }
 
-      // Persistir en estado ANTES de intentar PDF — si PDF falla, la orden ya está
       nextOrders = [...orders, savedOrder];
       setOrders(nextOrders);
       setDraft(null);
@@ -172,10 +167,9 @@ export default function Home() {
         7000
       );
       setSaving(false);
-      return; // draft preservado
+      return;
     }
 
-    // ---- Paso 2: generar PDF (no bloquea la persistencia) ----
     try {
       const { generateOrderPdf } = await import('../lib/pdfGenerator');
       await generateOrderPdf({
@@ -190,7 +184,7 @@ export default function Home() {
     } catch (e) {
       console.error('Error al generar PDF:', e);
       showToast(
-        `Orden ${savedOrder.orderNumber} guardada. El PDF falló — usá el botón "PDF" en la lista para reintentar.`,
+        `Orden ${savedOrder.orderNumber} guardada. PDF falló — usá el botón "PDF" en Historial.`,
         'warn',
         7000
       );
@@ -200,7 +194,7 @@ export default function Home() {
   }
 
   async function deleteOrder(id) {
-    if (!confirm('¿Eliminar esta orden?')) return;
+    if (!confirm('¿Eliminar esta orden definitivamente?')) return;
     try {
       const res = await fetch(`/api/orders/${id}`, { method: 'DELETE' });
       if (!res.ok && res.status !== 204) throw new Error('Error al eliminar');
@@ -225,18 +219,35 @@ export default function Home() {
     }
   }
 
-  async function resetAll() {
-    if (!confirm('¿Borrar TODAS las órdenes guardadas?')) return;
+  // Refrescar trailer: archiva órdenes activas (van al historial), limpia el
+  // draft local. Las órdenes NO se borran del historial.
+  async function refreshTrailer() {
+    if (orders.length === 0 && !draft) {
+      showToast('El trailer ya está vacío', 'success', 2000);
+      return;
+    }
+    const msg =
+      orders.length > 0
+        ? `¿Refrescar trailer? Las ${orders.length} orden(es) actuales pasarán al historial.`
+        : '¿Descartar el draft en curso?';
+    if (!confirm(msg)) return;
+
+    setRefreshing(true);
     try {
-      await fetch('/api/orders', { method: 'DELETE' });
+      if (orders.length > 0) {
+        const res = await fetch('/api/orders/archive', { method: 'POST' });
+        if (!res.ok) throw new Error('Error al archivar');
+      }
       setOrders([]);
       setDraft(null);
       try {
         localStorage.removeItem(DRAFT_STORAGE_KEY);
       } catch {}
-      showToast('Trailer reseteado', 'success', 2500);
+      showToast('Trailer reseteado · listo para nueva carga', 'success');
     } catch (e) {
-      showToast('Error al resetear: ' + e.message, 'error');
+      showToast('Error al refrescar: ' + e.message, 'error');
+    } finally {
+      setRefreshing(false);
     }
   }
 
@@ -270,6 +281,22 @@ export default function Home() {
               Vista superior · Largo {TRAILER_LENGTH} m
             </p>
           </div>
+          <button
+            className="btn-history"
+            onClick={() => setShowHistory(true)}
+            aria-label="Ver historial"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+              <path
+                d="M3 12a9 9 0 1 0 3-6.7M3 4v5h5M12 7v5l3 2"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+            <span>Historial</span>
+          </button>
         </header>
 
         <section className="hero-stats">
@@ -326,39 +353,48 @@ export default function Home() {
         </section>
 
         <section className="panel panel-trailer">
-          <h2 className="section-title">
-            <span className="section-dot" /> Trailer
-          </h2>
+          <div className="panel-header">
+            <h2 className="section-title">
+              <span className="section-dot" /> Vista superior del camión
+              <span className="count-badge">{orders.length}</span>
+            </h2>
+            <button
+              className="btn-refresh"
+              onClick={refreshTrailer}
+              disabled={refreshing}
+              title="Vacía el trailer y conserva el historial"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                <path
+                  d="M3 12a9 9 0 1 0 3-6.7M3 4v5h5"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+              {refreshing ? 'Refrescando…' : 'Refrescar'}
+            </button>
+          </div>
           <TrailerView
             orders={orders}
             draft={draft}
             trailerLength={TRAILER_LENGTH}
           />
-        </section>
-
-        <section className="panel">
-          <div className="panel-header">
-            <h2 className="section-title">
-              <span className="section-dot" /> Órdenes guardadas
-              <span className="count-badge">{orders.length}</span>
-            </h2>
-            {orders.length > 0 && (
-              <button className="btn-ghost btn-sm" onClick={resetAll}>
-                Borrar todas
-              </button>
-            )}
-          </div>
-          {loading ? (
-            <p className="empty">Cargando…</p>
-          ) : (
-            <OrderList
-              orders={orders}
-              onDelete={deleteOrder}
-              onReprint={reprintPdf}
-            />
+          {!loading && orders.length === 0 && !draft && (
+            <p className="empty empty-trailer">
+              Trailer vacío · iniciá una orden arriba ↑
+            </p>
           )}
         </section>
       </main>
+
+      <HistoryModal
+        open={showHistory}
+        onClose={() => setShowHistory(false)}
+        onReprint={reprintPdf}
+        onDelete={deleteOrder}
+      />
 
       {toast && (
         <div

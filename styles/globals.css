@@ -66,7 +66,35 @@ input[type=number] { -moz-appearance: textfield; }
   padding: 18px 14px calc(80px + env(safe-area-inset-bottom));
 }
 
-.topbar { margin-bottom: 18px; }
+.topbar {
+  margin-bottom: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.btn-history {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 9px 14px;
+  background: var(--surface);
+  border: 1.5px solid var(--border-2);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-weight: 700;
+  font-size: 13px;
+  letter-spacing: 0.02em;
+  transition: background 0.15s, border-color 0.15s, transform 0.05s;
+  flex-shrink: 0;
+}
+.btn-history:hover {
+  background: var(--surface-3);
+  border-color: var(--primary);
+  color: white;
+}
+.btn-history:active { transform: scale(0.97); }
+.btn-history svg { stroke: var(--primary); }
 .brand h1 {
   margin: 0;
   font-size: clamp(22px, 5.5vw, 30px);
@@ -360,6 +388,26 @@ input[type=number] { -moz-appearance: textfield; }
   font-weight: 600;
 }
 
+.btn-refresh {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+  color: white;
+  border-radius: var(--radius-sm);
+  font-weight: 700;
+  font-size: 13px;
+  min-height: 34px;
+  transition: transform 0.05s, box-shadow 0.15s;
+  box-shadow: 0 3px 10px rgba(245, 158, 11, 0.3);
+}
+.btn-refresh:hover:not(:disabled) {
+  box-shadow: 0 5px 14px rgba(245, 158, 11, 0.45);
+}
+.btn-refresh:active:not(:disabled) { transform: scale(0.96); }
+.btn-refresh:disabled { opacity: 0.5; cursor: not-allowed; }
+
 button:active:not(:disabled) { transform: scale(0.97); }
 button:disabled { opacity: 0.45; cursor: not-allowed; }
 
@@ -528,25 +576,89 @@ button:disabled { opacity: 0.45; cursor: not-allowed; }
   background: linear-gradient(135deg, #3b82f6, #06b6d4);
   height: 6px;
 }
-.meta-dot-lane1 {
-  background: linear-gradient(135deg, #8b5cf6, #ec4899);
-}
+.meta-arrow { color: var(--accent); font-weight: 800; font-size: 14px; }
 
 .trailer-scroll {
   overflow-x: auto;
-  padding: 28px 0 32px;
+  padding: 30px 0 36px;
   -webkit-overflow-scrolling: touch;
 }
 .trailer-scroll::-webkit-scrollbar { height: 6px; }
 .trailer-scroll::-webkit-scrollbar-thumb { background: var(--border-2); border-radius: 3px; }
 
+/* ===== Camión completo (tractor + hitch + trailer) ===== */
+.truck-stage {
+  position: relative;
+  display: flex;
+  align-items: center;
+  height: 180px;
+  filter: drop-shadow(0 6px 20px rgba(0, 0, 0, 0.4));
+  min-width: 100%;
+}
+
+/* TRACTOR (cabina del camión) */
+.truck-tractor {
+  position: relative;
+  flex-shrink: 0;
+  width: 70px;
+  height: 130px;
+  margin-right: 4px;
+}
+.tractor-body {
+  position: absolute;
+  inset: 12px 0;
+  background: linear-gradient(180deg, #4ade80, #22c55e 50%, #16a34a);
+  border: 2px solid #0f172a;
+  border-radius: 10px 14px 14px 10px;
+  box-shadow:
+    inset 0 -6px 12px rgba(0, 0, 0, 0.2),
+    inset 0 2px 4px rgba(255, 255, 255, 0.3);
+}
+.tractor-body::before {
+  /* Capó (hood) — pequeño cuadro sobresalido al frente */
+  content: '';
+  position: absolute;
+  left: -10px;
+  top: 18px;
+  bottom: 18px;
+  width: 14px;
+  background: linear-gradient(180deg, #16a34a, #15803d);
+  border: 2px solid #0f172a;
+  border-right: none;
+  border-radius: 8px 0 0 8px;
+}
+.tractor-windshield {
+  position: absolute;
+  inset: 22px 14px 22px 28px;
+  background: linear-gradient(135deg, #93c5fd, #3b82f6);
+  border-radius: 4px;
+  border: 1.5px solid rgba(0, 0, 0, 0.3);
+  box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.4);
+  z-index: 1;
+}
+.trailer-stage.overflow ~ /* not used */
+.truck-stage:has(.trailer-stage.overflow) .tractor-body { /* fallback no-op */ }
+
+/* HITCH (enganche entre tractor y trailer) */
+.truck-hitch {
+  flex-shrink: 0;
+  width: 8px;
+  height: 6px;
+  background: #475569;
+  border: 1.5px solid #0f172a;
+  border-radius: 2px;
+  margin: 0 -2px;
+  z-index: 1;
+}
+
+/* TRAILER (carga) */
 .trailer-stage {
   position: relative;
   display: grid;
-  grid-template-columns: 38px 1fr 38px;
+  grid-template-columns: 32px 1fr 36px;
   align-items: stretch;
-  height: 180px;
-  filter: drop-shadow(0 4px 16px rgba(0, 0, 0, 0.4));
+  height: 130px;
+  flex: 1;
 }
 
 /* Cabeza (frente) y puertas */
@@ -554,11 +666,11 @@ button:disabled { opacity: 0.45; cursor: not-allowed; }
 .trailer-doors {
   background:
     repeating-linear-gradient(45deg,
-      rgba(255, 255, 255, 0.03) 0,
-      rgba(255, 255, 255, 0.03) 6px,
+      rgba(255, 255, 255, 0.04) 0,
+      rgba(255, 255, 255, 0.04) 6px,
       transparent 6px,
       transparent 12px),
-    linear-gradient(180deg, #243352, #131c30);
+    linear-gradient(180deg, #2a3a58, #131c30);
   border: 3px solid #4ade80;
   display: flex;
   align-items: center;
@@ -569,11 +681,18 @@ button:disabled { opacity: 0.45; cursor: not-allowed; }
 }
 .trailer-cab {
   border-right: none;
-  border-radius: 22px 4px 4px 22px;
+  border-radius: 6px 0 0 6px;
 }
 .trailer-doors {
   border-left: none;
-  border-radius: 4px 22px 22px 4px;
+  border-radius: 0 14px 14px 0;
+  background:
+    repeating-linear-gradient(90deg,
+      rgba(255, 255, 255, 0.07) 0,
+      rgba(255, 255, 255, 0.07) 1px,
+      transparent 1px,
+      transparent 6px),
+    linear-gradient(180deg, #2a3a58, #1a2540);
 }
 .trailer-cab span,
 .trailer-doors span {
@@ -585,6 +704,55 @@ button:disabled { opacity: 0.45; cursor: not-allowed; }
   text-transform: uppercase;
 }
 .trailer-cab span { transform: rotate(180deg); }
+.door-handle {
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 5px;
+  height: 24px;
+  background: linear-gradient(180deg, #94a3b8, #64748b);
+  border-radius: 2px;
+  border: 1px solid #0f172a;
+}
+
+/* Ruedas (round dark circles) */
+.wheel {
+  position: absolute;
+  width: 14px;
+  height: 7px;
+  background: linear-gradient(180deg, #1e293b, #020617);
+  border: 1.5px solid #0f172a;
+  border-radius: 3px;
+  z-index: 0;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+}
+.wheel::after {
+  content: '';
+  position: absolute;
+  inset: 1.5px 2px;
+  background: repeating-linear-gradient(90deg,
+    rgba(255, 255, 255, 0.1) 0,
+    rgba(255, 255, 255, 0.1) 1px,
+    transparent 1px,
+    transparent 2px);
+  border-radius: 2px;
+}
+
+/* Tractor wheels */
+.wheel-tractor-fl { left: -4px; top: 0; }
+.wheel-tractor-fr { right: -4px; top: 0; }
+.wheel-tractor-rl { left: -4px; bottom: 0; }
+.wheel-tractor-rr { right: -4px; bottom: 0; }
+.truck-tractor .wheel { width: 18px; height: 8px; }
+
+/* Trailer wheels — eje delantero (bajo el cab) y 2 ejes traseros */
+.wheel-trailer-fl { left: 28px; top: -7px; }
+.wheel-trailer-fr { left: 28px; bottom: -7px; }
+.wheel-trailer-ml { right: 56px; top: -7px; }
+.wheel-trailer-mr { right: 56px; bottom: -7px; }
+.wheel-trailer-rl { right: 38px; top: -7px; }
+.wheel-trailer-rr { right: 38px; bottom: -7px; }
 
 /* Cuerpo del trailer */
 .trailer-body {
@@ -950,6 +1118,187 @@ button:disabled { opacity: 0.45; cursor: not-allowed; }
   to   { transform: translate(-50%, 0); opacity: 1; }
 }
 
+/* ===== Modal historial ===== */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  z-index: 90;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  animation: overlayIn 0.2s ease-out;
+}
+@keyframes overlayIn { from { opacity: 0; } to { opacity: 1; } }
+
+.modal {
+  background: var(--surface);
+  border: 1px solid var(--border-2);
+  border-radius: var(--radius) var(--radius) 0 0;
+  width: 100%;
+  max-width: 720px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 -20px 60px rgba(0, 0, 0, 0.5);
+  animation: modalIn 0.28s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+@keyframes modalIn {
+  from { transform: translateY(40px); opacity: 0; }
+  to   { transform: translateY(0); opacity: 1; }
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 20px 14px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.modal-header h2 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 800;
+  color: white;
+}
+.modal-sub {
+  margin: 2px 0 0;
+  color: var(--text-dim);
+  font-size: 12px;
+}
+.modal-close {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--surface-3);
+  color: var(--text-dim);
+  font-size: 24px;
+  font-weight: 600;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.modal-close:hover { background: var(--danger); color: white; }
+
+.modal-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 12px 20px 0;
+  flex-shrink: 0;
+  overflow-x: auto;
+}
+.modal-tab {
+  padding: 8px 14px;
+  background: transparent;
+  color: var(--text-dim);
+  border: 1.5px solid transparent;
+  border-radius: var(--radius-sm);
+  font-weight: 600;
+  font-size: 13px;
+  white-space: nowrap;
+  transition: all 0.15s;
+}
+.modal-tab:hover { color: var(--text); background: var(--surface-3); }
+.modal-tab.active {
+  background: var(--primary);
+  color: white;
+  border-color: var(--primary);
+}
+
+.modal-body {
+  padding: 16px 20px 20px;
+  overflow-y: auto;
+  flex: 1;
+  -webkit-overflow-scrolling: touch;
+}
+
+.history-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.history-list li {
+  background: var(--surface-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.history-list li.history-archived {
+  background: var(--surface-2);
+  opacity: 0.78;
+}
+.history-list li.history-archived .history-num { color: var(--text-dim); }
+
+.history-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.history-num { font-weight: 800; font-size: 16px; color: white; }
+.history-date {
+  margin-left: auto;
+  color: var(--text-mute);
+  font-size: 12px;
+  font-weight: 500;
+}
+.history-badge {
+  background: var(--surface);
+  color: var(--text-mute);
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  border: 1px solid var(--border);
+}
+.history-meta {
+  display: flex;
+  gap: 8px;
+  color: var(--text-dim);
+  font-size: 13px;
+  font-weight: 500;
+}
+.history-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+.history-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 4px;
+}
+
+.empty-trailer {
+  margin-top: 8px;
+  padding: 14px;
+  background: var(--surface-3);
+  border-radius: var(--radius-sm);
+  border: 1px dashed var(--border-2);
+}
+
+@media (min-width: 720px) {
+  .modal-overlay { align-items: center; }
+  .modal { border-radius: var(--radius); max-height: 80vh; }
+  .history-list li { flex-direction: row; align-items: center; gap: 14px; flex-wrap: wrap; }
+  .history-head { flex: 1; min-width: 200px; }
+  .history-meta, .history-chips { flex-shrink: 0; }
+  .history-actions { margin-top: 0; }
+}
+
 /* =========================================
    Tablet (>= 720px)
    ========================================= */
@@ -979,7 +1328,9 @@ button:disabled { opacity: 0.45; cursor: not-allowed; }
   .action-row { grid-template-columns: auto 1fr; justify-content: flex-end; }
   .action-row button { min-width: 160px; }
 
-  .trailer-stage { height: 200px; }
+  .truck-stage { height: 210px; }
+  .truck-tractor { width: 84px; height: 150px; margin-right: 6px; }
+  .trailer-stage { height: 150px; grid-template-columns: 36px 1fr 42px; }
   .trailer-cab span, .trailer-doors span { font-size: 10px; }
   .lanes-status { grid-template-columns: 1fr 1fr 2fr; }
   .lane-stat-total { grid-column: auto; }
@@ -998,7 +1349,9 @@ button:disabled { opacity: 0.45; cursor: not-allowed; }
    Desktop (>= 1024px)
    ========================================= */
 @media (min-width: 1024px) {
-  .trailer-stage { height: 230px; }
+  .truck-stage { height: 240px; }
+  .truck-tractor { width: 96px; height: 170px; }
+  .trailer-stage { height: 170px; }
   .panel { padding: 22px; }
   .panel-trailer { padding: 22px 22px 26px; }
 }
@@ -1011,14 +1364,22 @@ button:disabled { opacity: 0.45; cursor: not-allowed; }
   .panel { padding: 14px; border-radius: 12px; }
 
   .topbar { margin-bottom: 14px; }
+  .btn-history { padding: 8px 12px; font-size: 12px; }
+  .btn-history span { display: none; }  /* Solo icono en mobile chico */
   .hero-stats { gap: 8px; margin-bottom: 12px; }
   .hero-card { padding: 12px 14px; }
 
+  .truck-stage { height: 175px; }
+  .truck-tractor { width: 60px; height: 120px; margin-right: 3px; }
   .trailer-stage {
-    height: 180px;
-    grid-template-columns: 30px 1fr 30px;
+    height: 120px;
+    grid-template-columns: 26px 1fr 32px;
   }
   .trailer-cab span, .trailer-doors span { font-size: 8px; letter-spacing: 0.12em; }
+  .door-handle { width: 4px; height: 18px; }
+  .wheel-trailer-fl, .wheel-trailer-fr { left: 18px; }
+  .wheel-trailer-ml, .wheel-trailer-mr { right: 48px; }
+  .wheel-trailer-rl, .wheel-trailer-rr { right: 32px; }
   .box-label { font-size: 9px; }
   .box-label strong { font-size: 10px; }
   .box-full .box-label { font-size: 10px; }

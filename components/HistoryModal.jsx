@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { formatLocalDate } from '../lib/dateFormat';
 
 export default function HistoryModal({ open, onClose, onReprint, onDelete }) {
   const [orders, setOrders] = useState([]);
@@ -118,7 +119,7 @@ export default function HistoryModal({ open, onClose, onReprint, onDelete }) {
                 o.boxes.forEach((b) => {
                   counts[b.inches] = (counts[b.inches] || 0) + 1;
                 });
-                const fecha = new Date(o.createdAt).toLocaleString('es-MX', {
+                const fecha = formatLocalDate(o.createdAt, {
                   dateStyle: 'short',
                   timeStyle: 'short',
                 });

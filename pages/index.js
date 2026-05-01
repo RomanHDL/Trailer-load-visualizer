@@ -233,10 +233,17 @@ export default function Home() {
   async function reprintPdf(order) {
     try {
       const { generateOrderPdf } = await import('../lib/pdfGenerator');
+      // Si la orden está archivada (ya no está en `orders`, que solo trae
+      // activas), la agregamos al contexto del PDF para que sus tarimas
+      // aparezcan en el camión. Sin esto, el camión sale vacío al reimprimir
+      // desde el historial.
+      const allOrders = orders.some((o) => o._id === order._id)
+        ? orders
+        : [...orders, order];
       await generateOrderPdf({
         order,
         trailerLength: TRAILER_LENGTH,
-        allOrders: orders,
+        allOrders,
       });
       showToast('PDF regenerado', 'success', 2500);
     } catch (e) {

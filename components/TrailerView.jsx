@@ -1,5 +1,9 @@
 import { useRef, useState } from 'react';
 import { packBoxes } from '../lib/packing';
+import {
+  displayOrderNumber,
+  displayOrderNumberShort,
+} from '../lib/orderNumber';
 
 const ORDER_COLORS = [
   '#3b82f6', '#06b6d4', '#8b5cf6', '#ec4899',
@@ -234,7 +238,7 @@ export default function TrailerView({
                       background: b.color,
                       ...dragStyle,
                     }}
-                    title={`Orden ${b.orderNumber} • ${b.inches}" • ${b.meters} m${
+                    title={`Orden ${displayOrderNumber(b.orderNumber)} • ${b.inches}" • ${b.meters} m${
                       b.isDraft ? ' · arrastrá para reordenar' : ''
                     }`}
                     onPointerDown={(e) => handlePointerDown(e, b)}
@@ -243,7 +247,7 @@ export default function TrailerView({
                     onPointerCancel={handlePointerCancel}
                   >
                     <div className="box-label">
-                      <strong>{b.orderNumber}</strong>
+                      <strong>{displayOrderNumberShort(b.orderNumber)}</strong>
                       <span>{b.inches}"</span>
                     </div>
                   </div>

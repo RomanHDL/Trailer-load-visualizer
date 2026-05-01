@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { formatLocalDate } from '../lib/dateFormat';
+import { displayOrderNumber, isValidOrderNumber } from '../lib/orderNumber';
 
 export default function HistoryModal({ open, onClose, onReprint, onDelete }) {
   const [orders, setOrders] = useState([]);
@@ -134,8 +135,16 @@ export default function HistoryModal({ open, onClose, onReprint, onDelete }) {
                   >
                     <div className="history-head">
                       <span className="history-num">
-                        Orden {o.orderNumber}
+                        Orden {displayOrderNumber(o.orderNumber)}
                       </span>
+                      {!isValidOrderNumber(o.orderNumber) && (
+                        <span
+                          className="history-badge history-badge-warn"
+                          title={`Valor original guardado: "${o.orderNumber ?? ''}"`}
+                        >
+                          ⚠ revisar
+                        </span>
+                      )}
                       {o.archivedAt && (
                         <span className="history-badge">Archivada</span>
                       )}

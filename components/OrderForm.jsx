@@ -1,5 +1,10 @@
 import { useState } from 'react';
 import { SIZE_OPTIONS, SIZE_TABLE } from '../data/sizeTable';
+import {
+  isValidOrderNumber,
+  normalizeOrderNumber,
+  displayOrderNumber,
+} from '../lib/orderNumber';
 
 // Maneja el draft de una orden: el # orden se queda fijo mientras el usuario
 // agrega cajas. Permite agregar N cajas a la vez (cantidad).
@@ -14,6 +19,7 @@ export default function OrderForm({
   saving,
 }) {
   const [orderNumber, setOrderNumber] = useState('');
+  const [orderError, setOrderError] = useState(null);
   const [inches, setInches] = useState(SIZE_OPTIONS[0].inches);
   // qtyStr es string para permitir estado vacío mientras el usuario escribe.
   // El número final se calcula a partir de qtyStr en submit/+/-/blur.
@@ -26,8 +32,15 @@ export default function OrderForm({
         className="form form-start"
         onSubmit={(e) => {
           e.preventDefault();
-          if (!orderNumber.trim()) return;
-          onStart(orderNumber.trim());
+          const v = normalizeOrderNumber(orderNumber);
+          if (!isValidOrderNumber(v)) {
+            setOrderError(
+              'El número de orden debe contener al menos una letra o un dígito (no solo guiones o símbolos).'
+            );
+            return;
+          }
+          setOrderError(null);
+          onStart(v);
           setOrderNumber('');
         }}
       >
@@ -37,11 +50,21 @@ export default function OrderForm({
             type="text"
             inputMode="text"
             value={orderNumber}
-            onChange={(e) => setOrderNumber(e.target.value)}
+            onChange={(e) => {
+              setOrderNumber(e.target.value);
+              if (orderError) setOrderError(null);
+            }}
             placeholder="Ej. 12345"
+            maxLength={32}
             autoFocus
             required
+            aria-invalid={orderError ? 'true' : 'false'}
           />
+          {orderError && (
+            <p className="field-error" role="alert">
+              {orderError}
+            </p>
+          )}
         </div>
         <button type="submit" className="btn-primary btn-block">
           Iniciar orden →
@@ -76,7 +99,7 @@ export default function OrderForm({
       <div className="active-header">
         <div className="active-id">
           <span className="label-mini">Orden activa</span>
-          <h2>#{draft.orderNumber}</h2>
+          <h2>#{displayOrderNumber(draft.orderNumber)}</h2>
         </div>
         <div className="active-stats">
           <div className="stat-tile">

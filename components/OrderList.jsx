@@ -1,3 +1,5 @@
+import { displayOrderNumber } from '../lib/orderNumber';
+
 export default function OrderList({ orders, onDelete, onReprint }) {
   if (!orders.length) {
     return (
@@ -19,7 +21,7 @@ export default function OrderList({ orders, onDelete, onReprint }) {
           <li key={o._id}>
             <div className="order-head">
               <span className="idx">#{i + 1}</span>
-              <span className="num">Orden {o.orderNumber}</span>
+              <span className="num">Orden {displayOrderNumber(o.orderNumber)}</span>
               <span className="size">
                 {o.boxes.length} cajas · {o.totalMeters.toFixed(2)} m
               </span>

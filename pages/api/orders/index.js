@@ -1,6 +1,7 @@
 import { dbConnect } from '../../../lib/mongodb';
 import Order from '../../../models/Order';
 import { SIZE_TABLE } from '../../../data/sizeTable';
+import { isValidOrderNumber, normalizeOrderNumber } from '../../../lib/orderNumber';
 
 export default async function handler(req, res) {
   await dbConnect();
@@ -20,10 +21,21 @@ export default async function handler(req, res) {
   if (req.method === 'POST') {
     try {
       const { orderNumber, boxes } = req.body || {};
-      const trimmedOrderNumber = String(orderNumber || '').trim();
+      const trimmedOrderNumber = normalizeOrderNumber(orderNumber);
 
       if (!trimmedOrderNumber) {
         return res.status(400).json({ error: 'Número de orden vacío' });
+      }
+      if (!isValidOrderNumber(trimmedOrderNumber)) {
+        return res.status(400).json({
+          error:
+            'Número de orden inválido: debe contener al menos una letra o dígito (no solo guiones o símbolos).',
+        });
+      }
+      if (trimmedOrderNumber.length > 32) {
+        return res
+          .status(400)
+          .json({ error: 'Número de orden muy largo (máx 32 caracteres)' });
       }
       if (!Array.isArray(boxes) || boxes.length === 0) {
         return res

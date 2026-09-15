@@ -3,6 +3,18 @@
 // para saber si ya se le mostró al usuario el aviso de la última versión).
 export const CHANGELOG = [
   {
+    version: '1.2.0',
+    date: '2026-09-15',
+    title: 'Historial de órdenes rediseñado, día por día',
+    changes: [
+      'El historial ahora se navega un día a la vez: abre siempre en HOY y muestra solo las órdenes de ese día.',
+      'Nuevo navegador de fechas (Hoy, Ayer, días anteriores y calendario) para moverte entre días sin recargar la página — no deja elegir fechas futuras.',
+      'Card de resumen del día con órdenes, tarimas y metros lineales totales.',
+      'Filas de orden más compactas, con chips de medidas y hora en vez de fecha completa.',
+      'Los filtros Todas/Activas/Archivadas, el PDF y Eliminar siguen funcionando igual que antes, ahora combinados con el día seleccionado.',
+    ],
+  },
+  {
     version: '1.1.0',
     date: '2026-09-15',
     title: 'Esquineros + control de límite del trailer',

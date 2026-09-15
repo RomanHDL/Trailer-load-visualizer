@@ -369,9 +369,19 @@ export default function Home() {
   orders.forEach((o) => o.boxes.forEach((b) => allBoxes.push(b)));
   if (draft) draft.boxes.forEach((b) => allBoxes.push(b));
   const { totalUsed: totalAll } = packBoxes(allBoxes);
-  const remaining = CAPACITY_LIMIT - totalAll;
+
+  // overflow real: solo se activa al pasar la tolerancia interna
+  // (CAPACITY_LIMIT). Mientras tanto, "Disponible" y "Capacidad" se
+  // muestran como si el tope siguiera siendo TRAILER_LENGTH (se topan en
+  // 0 / 100%) para que no se note la tolerancia extra.
   const overflow = totalAll > CAPACITY_LIMIT;
-  const usedPct = Math.min(100, (totalAll / CAPACITY_LIMIT) * 100);
+  const remaining = overflow
+    ? CAPACITY_LIMIT - totalAll
+    : Math.max(0, TRAILER_LENGTH - totalAll);
+  const capacityPct = overflow
+    ? (totalAll / CAPACITY_LIMIT) * 100
+    : Math.min(100, (totalAll / TRAILER_LENGTH) * 100);
+  const usedPct = Math.min(100, capacityPct);
 
   return (
     <>
@@ -456,7 +466,7 @@ export default function Home() {
               <span
                 className={`hero-pct ${overflow ? 'pct-red' : 'pct-green'}`}
               >
-                {((totalAll / CAPACITY_LIMIT) * 100).toFixed(0)}%
+                {capacityPct.toFixed(0)}%
               </span>
             </div>
             <div className="progress-bar">

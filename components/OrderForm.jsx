@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { SIZE_OPTIONS, SIZE_TABLE } from '../data/sizeTable';
+import { packBoxes } from '../lib/packing';
 import {
   isValidOrderNumber,
   normalizeOrderNumber,
@@ -74,7 +75,9 @@ export default function OrderForm({
   }
 
   // Estado B: orden activa
-  const totalMeters = draft.boxes.reduce((s, b) => s + b.meters, 0);
+  // Metros que esta orden ocupa realmente en el trailer (2 tarimas en
+  // paralelo por carril) — no la suma lineal de todas las tarimas.
+  const { totalUsed: totalMeters } = packBoxes(draft.boxes);
 
   // Agrupa cajas por medida para mostrar chips compactos
   const groups = {};
@@ -104,7 +107,7 @@ export default function OrderForm({
         <div className="active-stats">
           <div className="stat-tile">
             <span className="stat-num">{draft.boxes.length}</span>
-            <span className="stat-lbl">cajas</span>
+            <span className="stat-lbl">pallets</span>
           </div>
           <div className="stat-tile stat-tile-primary">
             <span className="stat-num">{totalMeters.toFixed(2)}</span>

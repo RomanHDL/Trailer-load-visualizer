@@ -3,6 +3,7 @@ import Head from 'next/head';
 import OrderForm from '../components/OrderForm';
 import TrailerView from '../components/TrailerView';
 import HistoryModal from '../components/HistoryModal';
+import LimitModal from '../components/LimitModal';
 import { SIZE_TABLE } from '../data/sizeTable';
 import { packBoxes } from '../lib/packing';
 
@@ -20,6 +21,7 @@ export default function Home() {
   const [refreshing, setRefreshing] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [toast, setToast] = useState(null);
+  const [limitInfo, setLimitInfo] = useState(null);
   const draftHydrated = useRef(false);
 
   useEffect(() => {
@@ -90,6 +92,43 @@ export default function Home() {
     const meters = SIZE_TABLE[inches];
     if (!meters) return;
     const n = Math.max(1, Math.floor(qty));
+
+    // Todo lo que ya ocupa espacio real en el trailer: órdenes activas +
+    // las tarimas que el draft ya trae.
+    const existingBoxes = [
+      ...orders.flatMap((o) => o.boxes),
+      ...(draft ? draft.boxes : []),
+    ];
+
+    // Simulamos de a una tarima cuántas caben antes de pasar el límite —
+    // todo o nada, no se agrega una cantidad parcial.
+    let fits = 0;
+    const probe = [...existingBoxes];
+    for (let i = 0; i < n; i++) {
+      probe.push({ inches, meters });
+      if (packBoxes(probe).totalUsed > TRAILER_LENGTH) {
+        probe.pop();
+        break;
+      }
+      fits++;
+    }
+
+    if (fits < n) {
+      const { totalUsed: currentUsed } = packBoxes(existingBoxes);
+      const availableM = Math.max(0, TRAILER_LENGTH - currentUsed);
+      const neededM = n * meters;
+      setLimitInfo({
+        inches,
+        metersPerUnit: meters,
+        requestedQty: n,
+        fits,
+        availableM,
+        neededM,
+        missingM: Math.max(0, (n - fits) * meters),
+      });
+      return;
+    }
+
     const newBoxes = Array.from({ length: n }, () => ({ inches, meters }));
     setDraft((d) => ({ ...d, boxes: [...d.boxes, ...newBoxes] }));
   }
@@ -428,6 +467,8 @@ export default function Home() {
         onReprint={reprintPdf}
         onDelete={deleteOrder}
       />
+
+      <LimitModal data={limitInfo} onClose={() => setLimitInfo(null)} />
 
       {toast && (
         <div

@@ -13,6 +13,13 @@ const TRAILER_LENGTH = Number(
   process.env.NEXT_PUBLIC_TRAILER_LENGTH || 15.9
 );
 
+// Tolerancia real interna: el trailer en la práctica admite bastante más de
+// lo que se muestra como "límite" en pantalla. Todo lo que decide si algo
+// cabe o no (bloqueo al agregar, "% de capacidad", colores de overflow)
+// usa este valor; el número que se imprime en la UI/PDF sigue siendo
+// TRAILER_LENGTH, sin cambios.
+const CAPACITY_LIMIT = TRAILER_LENGTH * 2;
+
 const DRAFT_STORAGE_KEY = 'trailer:draft:v1';
 const CHANGELOG_SEEN_KEY = 'trailer:changelog:lastSeenVersion';
 
@@ -113,7 +120,7 @@ export default function Home() {
     const probe = [...baseBoxes];
     for (let i = 0; i < cap; i++) {
       probe.push({ inches, meters });
-      if (packBoxes(probe).totalUsed > TRAILER_LENGTH) break;
+      if (packBoxes(probe).totalUsed > CAPACITY_LIMIT) break;
       fits++;
     }
     return fits;
@@ -136,7 +143,7 @@ export default function Home() {
 
     if (fits < n) {
       const { totalUsed: currentUsed } = packBoxes(existingBoxes);
-      const availableM = Math.max(0, TRAILER_LENGTH - currentUsed);
+      const availableM = Math.max(0, CAPACITY_LIMIT - currentUsed);
       const neededM = n * meters;
 
       // Qué otras medidas (y cuántas) sí caben todavía en el espacio restante.
@@ -269,6 +276,7 @@ export default function Home() {
       await generateOrderPdf({
         order: savedOrder,
         trailerLength: TRAILER_LENGTH,
+        capacityLimit: CAPACITY_LIMIT,
         allOrders: nextOrders,
       });
       showToast(
@@ -315,6 +323,7 @@ export default function Home() {
       await generateOrderPdf({
         order,
         trailerLength: TRAILER_LENGTH,
+        capacityLimit: CAPACITY_LIMIT,
         allOrders,
       });
       showToast('PDF regenerado', 'success', 2500);
@@ -360,9 +369,9 @@ export default function Home() {
   orders.forEach((o) => o.boxes.forEach((b) => allBoxes.push(b)));
   if (draft) draft.boxes.forEach((b) => allBoxes.push(b));
   const { totalUsed: totalAll } = packBoxes(allBoxes);
-  const remaining = TRAILER_LENGTH - totalAll;
-  const overflow = totalAll > TRAILER_LENGTH;
-  const usedPct = Math.min(100, (totalAll / TRAILER_LENGTH) * 100);
+  const remaining = CAPACITY_LIMIT - totalAll;
+  const overflow = totalAll > CAPACITY_LIMIT;
+  const usedPct = Math.min(100, (totalAll / CAPACITY_LIMIT) * 100);
 
   return (
     <>
@@ -447,7 +456,7 @@ export default function Home() {
               <span
                 className={`hero-pct ${overflow ? 'pct-red' : 'pct-green'}`}
               >
-                {((totalAll / TRAILER_LENGTH) * 100).toFixed(0)}%
+                {((totalAll / CAPACITY_LIMIT) * 100).toFixed(0)}%
               </span>
             </div>
             <div className="progress-bar">
@@ -501,6 +510,7 @@ export default function Home() {
             orders={orders}
             draft={draft}
             trailerLength={TRAILER_LENGTH}
+            capacityLimit={CAPACITY_LIMIT}
             onReorderDraft={reorderDraftBox}
           />
           {!loading && orders.length === 0 && !draft && (

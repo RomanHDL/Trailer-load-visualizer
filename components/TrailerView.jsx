@@ -18,6 +18,7 @@ export default function TrailerView({
   orders,
   draft,
   trailerLength,
+  capacityLimit,
   onReorderDraft,
 }) {
   const bodyRef = useRef(null);
@@ -48,10 +49,16 @@ export default function TrailerView({
     });
   }
 
+  // El tope real de tolerancia puede ser mayor al que se muestra en pantalla
+  // (ver CAPACITY_LIMIT en pages/index.js). `trailerLength` sigue marcando
+  // la línea/etiqueta de "LÍMITE" que se ve en pantalla; `capacityLimit` es
+  // el que realmente decide cuándo algo se pinta como excedido.
+  const effectiveLimit = capacityLimit ?? trailerLength;
+
   const { placed, totalUsed, lane1, lane2 } = packBoxes(sequence);
-  const overflow = totalUsed > trailerLength;
+  const overflow = totalUsed > effectiveLimit;
   placed.forEach((b) => {
-    b.exceedsLimit = b.end > trailerLength;
+    b.exceedsLimit = b.end > effectiveLimit;
     if (b.exceedsLimit) b.color = '#ef4444';
   });
 

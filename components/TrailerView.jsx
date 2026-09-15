@@ -140,6 +140,10 @@ export default function TrailerView({
           <span className="meta-dot meta-dot-lane2" />
           Cada tarima ocupa medio carril · 2 tarimas en paralelo
         </span>
+        <span className="meta-item">
+          <span className="meta-corner-sample" aria-hidden="true" />
+          Esquinas marcadas = esquineros (medida ya incluye +1cm por lado)
+        </span>
         {draft && draft.boxes.length > 1 && (
           <span className="meta-item meta-item-hint">
             Arrastrá las tarimas amarillas para reordenarlas
@@ -246,6 +250,11 @@ export default function TrailerView({
                     onPointerUp={handlePointerUp}
                     onPointerCancel={handlePointerCancel}
                   >
+                    <span className="box-corner box-corner-tl" aria-hidden="true" />
+                    <span className="box-corner box-corner-tr" aria-hidden="true" />
+                    <span className="box-corner box-corner-bl" aria-hidden="true" />
+                    <span className="box-corner box-corner-br" aria-hidden="true" />
+
                     <div className="box-label">
                       <strong>{displayOrderNumberShort(b.orderNumber)}</strong>
                       <span>{b.inches}"</span>

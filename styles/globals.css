@@ -577,6 +577,33 @@ button:disabled { opacity: 0.45; cursor: not-allowed; }
   height: 6px;
 }
 .meta-arrow { color: var(--accent); font-weight: 800; font-size: 14px; }
+.meta-corner-sample {
+  position: relative;
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+}
+.meta-corner-sample::before,
+.meta-corner-sample::after {
+  content: '';
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  border-top: 2px solid #fcd34d;
+  border-left: 2px solid #fcd34d;
+  top: 0;
+  left: 0;
+}
+.meta-corner-sample::after {
+  top: auto;
+  left: auto;
+  bottom: 0;
+  right: 0;
+  border-top: none;
+  border-left: none;
+  border-bottom: 2px solid #fcd34d;
+  border-right: 2px solid #fcd34d;
+}
 .meta-item-hint {
   background: rgba(251, 191, 36, 0.15);
   border: 1px solid rgba(251, 191, 36, 0.4);
@@ -950,6 +977,43 @@ button:disabled { opacity: 0.45; cursor: not-allowed; }
   position: relative;
   z-index: 1;
   line-height: 1.2;
+}
+
+/* Marcas de esquineros — indican las 4 esquinas físicas de la tarima */
+.box-corner {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  pointer-events: none;
+  z-index: 2;
+}
+.box-corner-tl {
+  top: 2px;
+  left: 2px;
+  border-top: 2px solid rgba(255, 255, 255, 0.85);
+  border-left: 2px solid rgba(255, 255, 255, 0.85);
+  border-radius: 2px 0 0 0;
+}
+.box-corner-tr {
+  top: 2px;
+  right: 2px;
+  border-top: 2px solid rgba(255, 255, 255, 0.85);
+  border-right: 2px solid rgba(255, 255, 255, 0.85);
+  border-radius: 0 2px 0 0;
+}
+.box-corner-bl {
+  bottom: 2px;
+  left: 2px;
+  border-bottom: 2px solid rgba(255, 255, 255, 0.85);
+  border-left: 2px solid rgba(255, 255, 255, 0.85);
+  border-radius: 0 0 0 2px;
+}
+.box-corner-br {
+  bottom: 2px;
+  right: 2px;
+  border-bottom: 2px solid rgba(255, 255, 255, 0.85);
+  border-right: 2px solid rgba(255, 255, 255, 0.85);
+  border-radius: 0 0 2px 0;
 }
 .box-label strong { font-size: 11px; font-weight: 800; }
 .box-full .box-label { font-size: 11px; }
@@ -1479,6 +1543,7 @@ button:disabled { opacity: 0.45; cursor: not-allowed; }
   .box-label strong { font-size: 10px; }
   .box-full .box-label { font-size: 10px; }
   .box-full .box-label strong { font-size: 11px; }
+  .box-corner { width: 5px; height: 5px; }
   .limit-tag { font-size: 9px; padding: 3px 7px; }
 
   .stat-tile { padding: 6px 10px; min-width: 60px; }

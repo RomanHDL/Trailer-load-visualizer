@@ -1,6 +1,6 @@
 // Tabla estándar de medidas (pulgadas -> metros que ocupa la caja en el trailer)
 // Hardcodeada según especificación.
-export const SIZE_TABLE = {
+const BASE_SIZE_TABLE = {
   50: 1.0,
   55: 1.45,
   58: 1.45,
@@ -9,6 +9,21 @@ export const SIZE_TABLE = {
   86: 2.13,
   100: 2.5,
 };
+
+// Margen extra por esquineros de flejado, 1 cm de cada lado de la tarima.
+// El cm de margen que ya trae la medida base es tolerancia general de
+// medición y no alcanza a cubrir el espacio físico que ocupan los
+// esquineros — sin este extra el cubicaje puede quedar corto en la vida real.
+export const CORNER_PROTECTOR_MARGIN_CM = 1; // por lado
+export const CORNER_PROTECTOR_MARGIN_M =
+  (CORNER_PROTECTOR_MARGIN_CM * 2) / 100;
+
+export const SIZE_TABLE = Object.fromEntries(
+  Object.entries(BASE_SIZE_TABLE).map(([inches, meters]) => [
+    inches,
+    Number((meters + CORNER_PROTECTOR_MARGIN_M).toFixed(4)),
+  ])
+);
 
 // Todas las tarimas pairean lado-a-lado en el trailer (2 carriles). El trailer
 // real permite 1 tarima a la izquierda + 1 a la derecha en cada posición.

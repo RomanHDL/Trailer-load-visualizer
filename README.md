@@ -31,15 +31,21 @@ Stack: **Next.js + MongoDB Atlas**, deploy en **Vercel**.
 
 ## Tabla de medidas (hardcodeada)
 
-| Pulgadas | Metros |
-|----------|--------|
-| 50"  | 1.0  |
-| 55"  | 1.45 |
-| 58"  | 1.45 |
-| 65"  | 1.58 |
-| 75"  | 1.88 |
-| 86"  | 2.13 |
-| 100" | 2.5  |
+Medida base + margen por esquineros de flejado (1 cm de cada lado de la
+tarima, 2 cm en total — ver `CORNER_PROTECTOR_MARGIN_CM` en `data/sizeTable.js`).
+
+| Pulgadas | Metros base | Metros (con esquineros) |
+|----------|-------------|--------------------------|
+| 50"  | 1.0  | 1.02 |
+| 55"  | 1.45 | 1.47 |
+| 58"  | 1.45 | 1.47 |
+| 65"  | 1.58 | 1.60 |
+| 75"  | 1.88 | 1.90 |
+| 86"  | 2.13 | 2.15 |
+| 100" | 2.5  | 2.52 |
+
+En la vista del trailer, cada tarima muestra marcas en sus 4 esquinas
+indicando la posición de los esquineros de protección.
 
 Largo total del trailer por defecto: **15.9 m** (configurable con `NEXT_PUBLIC_TRAILER_LENGTH`).
 

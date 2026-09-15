@@ -4,14 +4,17 @@ import OrderForm from '../components/OrderForm';
 import TrailerView from '../components/TrailerView';
 import HistoryModal from '../components/HistoryModal';
 import LimitModal from '../components/LimitModal';
+import ChangelogModal from '../components/ChangelogModal';
 import { SIZE_TABLE } from '../data/sizeTable';
 import { packBoxes } from '../lib/packing';
+import { CURRENT_VERSION } from '../data/changelog';
 
 const TRAILER_LENGTH = Number(
   process.env.NEXT_PUBLIC_TRAILER_LENGTH || 15.9
 );
 
 const DRAFT_STORAGE_KEY = 'trailer:draft:v1';
+const CHANGELOG_SEEN_KEY = 'trailer:changelog:lastSeenVersion';
 
 export default function Home() {
   const [orders, setOrders] = useState([]); // solo activas
@@ -20,9 +23,24 @@ export default function Home() {
   const [saving, setSaving] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
+  const [showChangelog, setShowChangelog] = useState(false);
   const [toast, setToast] = useState(null);
   const [limitInfo, setLimitInfo] = useState(null);
   const draftHydrated = useRef(false);
+
+  // Muestra el aviso de novedades una sola vez por versión (por navegador).
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      const seen = localStorage.getItem(CHANGELOG_SEEN_KEY);
+      if (seen !== CURRENT_VERSION) {
+        setShowChangelog(true);
+        localStorage.setItem(CHANGELOG_SEEN_KEY, CURRENT_VERSION);
+      }
+    } catch (e) {
+      /* ignore */
+    }
+  }, []);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -88,6 +106,19 @@ export default function Home() {
     setDraft({ orderNumber, boxes: [] });
   }
 
+  // Simula de a una tarima cuántas de esta medida caben sobre `baseBoxes`
+  // antes de pasar el límite del trailer.
+  function maxFitCount(baseBoxes, inches, meters, cap = 60) {
+    let fits = 0;
+    const probe = [...baseBoxes];
+    for (let i = 0; i < cap; i++) {
+      probe.push({ inches, meters });
+      if (packBoxes(probe).totalUsed > TRAILER_LENGTH) break;
+      fits++;
+    }
+    return fits;
+  }
+
   function addBoxesToDraft(inches, qty = 1) {
     const meters = SIZE_TABLE[inches];
     if (!meters) return;
@@ -100,23 +131,24 @@ export default function Home() {
       ...(draft ? draft.boxes : []),
     ];
 
-    // Simulamos de a una tarima cuántas caben antes de pasar el límite —
-    // todo o nada, no se agrega una cantidad parcial.
-    let fits = 0;
-    const probe = [...existingBoxes];
-    for (let i = 0; i < n; i++) {
-      probe.push({ inches, meters });
-      if (packBoxes(probe).totalUsed > TRAILER_LENGTH) {
-        probe.pop();
-        break;
-      }
-      fits++;
-    }
+    // Todo o nada: si la medida pedida no cabe completa, no se agrega nada.
+    const fits = maxFitCount(existingBoxes, inches, meters, n);
 
     if (fits < n) {
       const { totalUsed: currentUsed } = packBoxes(existingBoxes);
       const availableM = Math.max(0, TRAILER_LENGTH - currentUsed);
       const neededM = n * meters;
+
+      // Qué otras medidas (y cuántas) sí caben todavía en el espacio restante.
+      const stillFits = Object.entries(SIZE_TABLE)
+        .map(([inchesKey, m]) => ({
+          inches: Number(inchesKey),
+          meters: m,
+          fits: maxFitCount(existingBoxes, Number(inchesKey), m),
+        }))
+        .filter((s) => s.fits > 0)
+        .sort((a, b) => a.inches - b.inches);
+
       setLimitInfo({
         inches,
         metersPerUnit: meters,
@@ -125,6 +157,7 @@ export default function Home() {
         availableM,
         neededM,
         missingM: Math.max(0, (n - fits) * meters),
+        stillFits,
       });
       return;
     }
@@ -349,25 +382,42 @@ export default function Home() {
               Trailer <span className="brand-accent">Load</span> Visualizer
             </h1>
             <p className="subtitle">
-              Vista superior · Largo {TRAILER_LENGTH} m
+              Vista superior · Largo {TRAILER_LENGTH} m · v{CURRENT_VERSION}
             </p>
           </div>
-          <button
-            className="btn-history"
-            onClick={() => setShowHistory(true)}
-            aria-label="Ver historial"
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-              <path
-                d="M3 12a9 9 0 1 0 3-6.7M3 4v5h5M12 7v5l3 2"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-            <span>Historial</span>
-          </button>
+          <div className="topbar-actions">
+            <button
+              className="btn-history"
+              onClick={() => setShowChangelog(true)}
+              aria-label="Ver historial de actualizaciones"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                <path
+                  d="M12 2v4M12 18v4M4.9 4.9l2.8 2.8M16.3 16.3l2.8 2.8M2 12h4M18 12h4M4.9 19.1l2.8-2.8M16.3 7.7l2.8-2.8"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                />
+              </svg>
+              <span>Actualizaciones</span>
+            </button>
+            <button
+              className="btn-history"
+              onClick={() => setShowHistory(true)}
+              aria-label="Ver historial"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                <path
+                  d="M3 12a9 9 0 1 0 3-6.7M3 4v5h5M12 7v5l3 2"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+              <span>Historial</span>
+            </button>
+          </div>
         </header>
 
         <section className="hero-stats">
@@ -469,6 +519,11 @@ export default function Home() {
       />
 
       <LimitModal data={limitInfo} onClose={() => setLimitInfo(null)} />
+
+      <ChangelogModal
+        open={showChangelog}
+        onClose={() => setShowChangelog(false)}
+      />
 
       {toast && (
         <div

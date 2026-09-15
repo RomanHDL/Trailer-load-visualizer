@@ -73,6 +73,12 @@ input[type=number] { -moz-appearance: textfield; }
   justify-content: space-between;
   gap: 12px;
 }
+.topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
 .btn-history {
   display: inline-flex;
   align-items: center;
@@ -1288,6 +1294,28 @@ button:disabled { opacity: 0.45; cursor: not-allowed; }
   line-height: 1.45;
 }
 
+.alert-modal-fits { margin-bottom: 18px; text-align: left; }
+.alert-modal-fits-label {
+  margin: 0 0 8px;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--text-dim);
+}
+.alert-modal-fits-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.alert-modal-fit-chip {
+  background: rgba(34, 197, 94, 0.12);
+  border: 1px solid rgba(34, 197, 94, 0.4);
+  color: var(--success);
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 700;
+  border-radius: 999px;
+}
+
 /* ===== Modal historial ===== */
 .modal-overlay {
   position: fixed;
@@ -1384,6 +1412,66 @@ button:disabled { opacity: 0.45; cursor: not-allowed; }
   overflow-y: auto;
   flex: 1;
   -webkit-overflow-scrolling: touch;
+}
+
+.modal-changelog { max-width: 640px; }
+
+.changelog-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.changelog-entry {
+  background: var(--surface-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 14px 16px;
+}
+.changelog-entry-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+.changelog-version {
+  font-size: 15px;
+  font-weight: 800;
+  color: white;
+  font-variant-numeric: tabular-nums;
+}
+.changelog-badge {
+  background: var(--success);
+  color: white;
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+.changelog-date {
+  margin-left: auto;
+  font-size: 12px;
+  color: var(--text-dim);
+}
+.changelog-title {
+  margin: 0 0 8px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+}
+.changelog-changes {
+  margin: 0;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-size: 13px;
+  color: var(--text-dim);
+  line-height: 1.5;
 }
 
 .history-list {

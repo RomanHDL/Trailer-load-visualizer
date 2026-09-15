@@ -9,10 +9,10 @@ export default function LimitModal({ data, onClose }) {
     inches,
     metersPerUnit,
     requestedQty,
-    fits,
     availableM,
     neededM,
     missingM,
+    stillFits = [],
   } = data;
 
   const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
@@ -55,11 +55,24 @@ export default function LimitModal({ data, onClose }) {
           </div>
         </div>
 
-        <p className="alert-modal-hint">
-          {fits > 0
-            ? `Todavía caben ${plural(fits, 'pallet')} más de ${inches}". Agregá esa cantidad o menos.`
-            : `Ya no cabe ningún pallet de ${inches}" en este trailer.`}
-        </p>
+        {stillFits.length > 0 ? (
+          <div className="alert-modal-fits">
+            <p className="alert-modal-fits-label">
+              Todavía podés agregar, sin pasarte del límite:
+            </p>
+            <div className="alert-modal-fits-chips">
+              {stillFits.map((s) => (
+                <span key={s.inches} className="alert-modal-fit-chip">
+                  {plural(s.fits, 'pallet')} de {s.inches}"
+                </span>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <p className="alert-modal-hint">
+            Ya no cabe ningún pallet de ninguna medida en este trailer.
+          </p>
+        )}
 
         <button className="btn-primary btn-block" onClick={onClose} autoFocus>
           Entendido

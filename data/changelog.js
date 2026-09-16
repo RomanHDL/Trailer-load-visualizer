@@ -3,6 +3,17 @@
 // para saber si ya se le mostró al usuario el aviso de la última versión).
 export const CHANGELOG = [
   {
+    version: '1.3.0',
+    date: '2026-09-15',
+    title: 'Modo claro/oscuro + aviso de novedades simplificado',
+    changes: [
+      'Nuevo botón en la barra superior para alternar entre tema oscuro y tema claro, con ícono de sol/luna. La preferencia se recuerda entre visitas.',
+      'Todos los colores de la app (superficies, texto, tarjetas, modales) ahora se adaptan al tema elegido; la ilustración del camión y los colores de marca se mantienen iguales en ambos temas.',
+      'El aviso automático de "hay una actualización nueva" ahora muestra solo los cambios de la versión más reciente, en vez de abrir todo el historial. Desde ahí se puede entrar al historial completo si se quiere ver más.',
+      'El botón "Actualizaciones" del topbar sigue mostrando el historial completo de versiones, sin cambios.',
+    ],
+  },
+  {
     version: '1.2.0',
     date: '2026-09-15',
     title: 'Historial de órdenes rediseñado, día por día',

@@ -5,6 +5,7 @@ import TrailerView from '../components/TrailerView';
 import HistoryModal from '../components/HistoryModal';
 import LimitModal from '../components/LimitModal';
 import ChangelogModal from '../components/ChangelogModal';
+import WhatsNewModal from '../components/WhatsNewModal';
 import { SIZE_TABLE } from '../data/sizeTable';
 import { packBoxes } from '../lib/packing';
 import { CURRENT_VERSION } from '../data/changelog';
@@ -22,6 +23,8 @@ const CAPACITY_LIMIT = TRAILER_LENGTH * 2;
 
 const DRAFT_STORAGE_KEY = 'trailer:draft:v1';
 const CHANGELOG_SEEN_KEY = 'trailer:changelog:lastSeenVersion';
+const THEME_KEY = 'trailer:theme';
+const THEME_COLORS = { dark: '#0b1220', light: '#f8fafc' };
 
 export default function Home() {
   const [orders, setOrders] = useState([]); // solo activas
@@ -31,17 +34,55 @@ export default function Home() {
   const [refreshing, setRefreshing] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [showChangelog, setShowChangelog] = useState(false);
+  const [showWhatsNew, setShowWhatsNew] = useState(false);
   const [toast, setToast] = useState(null);
   const [limitInfo, setLimitInfo] = useState(null);
+  const [theme, setTheme] = useState('dark');
   const draftHydrated = useRef(false);
 
-  // Muestra el aviso de novedades una sola vez por versión (por navegador).
+  // Aplica el tema lo antes posible (primer render en cliente) para evitar
+  // flash de tema incorrecto: respeta lo guardado en localStorage, si no hay
+  // nada guardado usa prefers-color-scheme, y si tampoco eso es concluyente
+  // el fallback histórico de la app siempre fue oscuro.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    let initial = 'dark';
+    try {
+      const saved = localStorage.getItem(THEME_KEY);
+      if (saved === 'light' || saved === 'dark') {
+        initial = saved;
+      } else if (window.matchMedia?.('(prefers-color-scheme: light)').matches) {
+        initial = 'light';
+      }
+    } catch (e) {
+      /* ignore */
+    }
+    setTheme(initial);
+    document.documentElement.setAttribute('data-theme', initial);
+  }, []);
+
+  function toggleTheme() {
+    setTheme((prev) => {
+      const next = prev === 'dark' ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', next);
+      try {
+        localStorage.setItem(THEME_KEY, next);
+      } catch (e) {
+        /* ignore */
+      }
+      return next;
+    });
+  }
+
+  // Muestra el aviso de novedades (solo la versión nueva) una sola vez por
+  // versión (por navegador). El historial completo sigue en ChangelogModal,
+  // accesible desde el botón "Actualizaciones".
   useEffect(() => {
     if (typeof window === 'undefined') return;
     try {
       const seen = localStorage.getItem(CHANGELOG_SEEN_KEY);
       if (seen !== CURRENT_VERSION) {
-        setShowChangelog(true);
+        setShowWhatsNew(true);
         localStorage.setItem(CHANGELOG_SEEN_KEY, CURRENT_VERSION);
       }
     } catch (e) {
@@ -391,7 +432,7 @@ export default function Home() {
           name="viewport"
           content="width=device-width, initial-scale=1, viewport-fit=cover"
         />
-        <meta name="theme-color" content="#0b1220" />
+        <meta name="theme-color" content={THEME_COLORS[theme]} />
       </Head>
 
       <main className="page">
@@ -405,6 +446,38 @@ export default function Home() {
             </p>
           </div>
           <div className="topbar-actions">
+            <button
+              className="btn-history"
+              onClick={toggleTheme}
+              aria-label={
+                theme === 'dark'
+                  ? 'Cambiar a tema claro'
+                  : 'Cambiar a tema oscuro'
+              }
+              title={theme === 'dark' ? 'Tema claro' : 'Tema oscuro'}
+            >
+              {theme === 'dark' ? (
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                  <circle cx="12" cy="12" r="4.5" stroke="currentColor" strokeWidth="2" />
+                  <path
+                    d="M12 2v2.5M12 19.5V22M4.2 4.2l1.8 1.8M18 18l1.8 1.8M2 12h2.5M19.5 12H22M4.2 19.8 6 18M18 6l1.8-1.8"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                  />
+                </svg>
+              ) : (
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                  <path
+                    d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5z"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              )}
+              <span>{theme === 'dark' ? 'Claro' : 'Oscuro'}</span>
+            </button>
             <button
               className="btn-history"
               onClick={() => setShowChangelog(true)}
@@ -543,6 +616,12 @@ export default function Home() {
       <ChangelogModal
         open={showChangelog}
         onClose={() => setShowChangelog(false)}
+      />
+
+      <WhatsNewModal
+        open={showWhatsNew}
+        onClose={() => setShowWhatsNew(false)}
+        onViewFullHistory={() => setShowChangelog(true)}
       />
 
       {toast && (

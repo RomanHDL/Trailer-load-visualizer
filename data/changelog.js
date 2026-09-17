@@ -3,6 +3,17 @@
 // para saber si ya se le mostró al usuario el aviso de la última versión).
 export const CHANGELOG = [
   {
+    version: '1.8.0',
+    date: '2026-09-17',
+    title: 'Navegación de fecha unificada en el Historial',
+    changes: [
+      'Modo Día: ya no se muestran varios días juntos (Hoy/Ayer/15 sep/14 sep). Ahora se ve un solo día a la vez, con flechas para ir al anterior/siguiente y un botón discreto "Seleccionar fecha".',
+      'La flecha "siguiente" se deshabilita automáticamente al llegar a Hoy — no se puede avanzar a fechas futuras.',
+      'Modo Semana: mismo patrón visual que Día, con las flechas en posiciones fijas — ya no se mueven aunque el texto de la semana sea más largo (cambio de mes o de año).',
+      'Los resúmenes diario y semanal, la búsqueda global, Ver simulación, PDF y la memoria del historial siguen funcionando exactamente igual.',
+    ],
+  },
+  {
     version: '1.7.0',
     date: '2026-09-17',
     title: 'Nueva orden, memoria del historial, tooltip de tarimas y resumen semanal',

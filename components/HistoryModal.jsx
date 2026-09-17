@@ -15,8 +15,7 @@ import {
 import { displayOrderNumber, isValidOrderNumber } from '../lib/orderNumber';
 import { useBodyScrollLock } from '../lib/useBodyScrollLock';
 import { getSizeColor } from '../data/sizeColors';
-
-const DAY_WINDOW_SIZE = 4;
+import PeriodNavigator from './PeriodNavigator';
 
 export default function HistoryModal({
   open,
@@ -34,7 +33,6 @@ export default function HistoryModal({
   // ===== Navegación por día =====
   const [todayKey, setTodayKey] = useState(null);
   const [selectedDay, setSelectedDay] = useState(null); // dayKey 'YYYY-MM-DD'
-  const [windowEnd, setWindowEnd] = useState(null); // día más reciente mostrado en la barra
   const [sortOrder, setSortOrder] = useState('desc'); // 'desc' | 'asc'
   const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState('day'); // 'day' | 'week'
@@ -66,7 +64,6 @@ export default function HistoryModal({
     if (!hasOpenedRef.current) {
       // Primera vez en esta sesión: comportamiento de siempre, abrir en HOY.
       setSelectedDay(t);
-      setWindowEnd(t);
       setSortOrder('desc');
       setSearchQuery('');
       setWeekStart(getWeekStartKey(t));
@@ -242,13 +239,6 @@ export default function HistoryModal({
     [dayOrders]
   );
 
-  const windowDays = useMemo(() => {
-    if (!windowEnd) return [];
-    return Array.from({ length: DAY_WINDOW_SIZE }, (_, i) =>
-      addDaysToKey(windowEnd, -i)
-    );
-  }, [windowEnd]);
-
   // Posiciona el menú "..." (portal, position: fixed) con su altura real ya
   // medida, y lo hace aparecer arriba del botón si no entra abajo.
   useLayoutEffect(() => {
@@ -292,12 +282,6 @@ export default function HistoryModal({
 
   const yesterdayKey = todayKey ? addDaysToKey(todayKey, -1) : null;
 
-  function dayChipLabel(dayKey) {
-    if (dayKey === todayKey) return `Hoy · ${formatDayShort(dayKey)}`;
-    if (dayKey === yesterdayKey) return `Ayer · ${formatDayShort(dayKey)}`;
-    return formatDayShort(dayKey);
-  }
-
   function dayCardLabel(dayKey) {
     const full = formatDayLong(dayKey);
     if (dayKey === todayKey) return `Hoy · ${full}`;
@@ -311,13 +295,13 @@ export default function HistoryModal({
     return `Órdenes del ${formatDayLongNoYear(dayKey)} (${count})`;
   }
 
-  function goOlder() {
-    setWindowEnd((w) => addDaysToKey(w, -DAY_WINDOW_SIZE));
+  function goPrevDay() {
+    setSelectedDay((d) => addDaysToKey(d, -1));
   }
 
-  function goNewer() {
-    setWindowEnd((w) => {
-      const next = addDaysToKey(w, DAY_WINDOW_SIZE);
+  function goNextDay() {
+    setSelectedDay((d) => {
+      const next = addDaysToKey(d, 1);
       return next > todayKey ? todayKey : next;
     });
   }
@@ -340,7 +324,6 @@ export default function HistoryModal({
   function pickDate(value) {
     if (!value) return;
     setSelectedDay(value);
-    setWindowEnd(value);
   }
 
   async function confirmDelete(id) {
@@ -479,64 +462,34 @@ export default function HistoryModal({
 
         {viewMode === 'day' ? (
           <>
-            <div className="day-nav-row">
+            <PeriodNavigator
+              label={selectedDay ? dayCardLabel(selectedDay) : ''}
+              onPrev={goPrevDay}
+              onNext={goNextDay}
+              nextDisabled={selectedDay === todayKey}
+              prevLabel="Día anterior"
+              nextLabel="Día siguiente"
+            />
+
+            <div className="date-picker-row">
               <button
                 type="button"
-                className="day-nav-arrow"
-                onClick={goOlder}
-                aria-label="Días anteriores"
+                className="date-picker-btn"
+                onClick={openDatePicker}
+                aria-label="Seleccionar fecha"
               >
-                ‹
-              </button>
-
-              <div className="day-nav-scroll">
-                {windowDays.map((dayKey) => (
-                  <button
-                    key={dayKey}
-                    type="button"
-                    className={`day-chip ${
-                      dayKey === selectedDay ? 'day-chip-active' : ''
-                    }`}
-                    onClick={() => setSelectedDay(dayKey)}
-                  >
-                    {dayKey === todayKey && (
-                      <span className="day-chip-icon" aria-hidden="true">
-                        📅
-                      </span>
-                    )}
-                    {dayChipLabel(dayKey)}
-                  </button>
-                ))}
-
-                <button
-                  type="button"
-                  className="day-chip day-chip-picker"
-                  onClick={openDatePicker}
-                >
-                  <span className="day-chip-icon" aria-hidden="true">
-                    📅
-                  </span>
-                  Seleccionar fecha
-                  <input
-                    ref={dateInputRef}
-                    type="date"
-                    className="day-date-input"
-                    max={todayKey || undefined}
-                    value={selectedDay || ''}
-                    onChange={(e) => pickDate(e.target.value)}
-                    aria-label="Elegir fecha"
-                  />
-                </button>
-              </div>
-
-              <button
-                type="button"
-                className="day-nav-arrow"
-                onClick={goNewer}
-                disabled={windowEnd === todayKey}
-                aria-label="Días más recientes"
-              >
-                ›
+                <span aria-hidden="true">📅</span>
+                Seleccionar fecha
+                <input
+                  ref={dateInputRef}
+                  type="date"
+                  className="day-date-input"
+                  max={todayKey || undefined}
+                  value={selectedDay || ''}
+                  onChange={(e) => pickDate(e.target.value)}
+                  aria-label="Elegir fecha"
+                  tabIndex={-1}
+                />
               </button>
             </div>
 
@@ -591,28 +544,14 @@ export default function HistoryModal({
           </>
         ) : (
           <>
-            <div className="week-nav-row">
-              <button
-                type="button"
-                className="day-nav-arrow"
-                onClick={goPrevWeek}
-                aria-label="Semana anterior"
-              >
-                ‹
-              </button>
-              <span className="week-nav-label">
-                Semana · {weekStart ? formatWeekRangeLabel(weekStart) : ''}
-              </span>
-              <button
-                type="button"
-                className="day-nav-arrow"
-                onClick={goNextWeek}
-                disabled={isCurrentWeek}
-                aria-label="Semana siguiente"
-              >
-                ›
-              </button>
-            </div>
+            <PeriodNavigator
+              label={`Semana · ${weekStart ? formatWeekRangeLabel(weekStart) : ''}`}
+              onPrev={goPrevWeek}
+              onNext={goNextWeek}
+              nextDisabled={isCurrentWeek}
+              prevLabel="Semana anterior"
+              nextLabel="Semana siguiente"
+            />
 
             <div className="day-summary-wrap">
               <div className="day-summary-card">

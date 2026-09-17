@@ -1898,30 +1898,18 @@ button:disabled { opacity: 0.45; cursor: not-allowed; }
 }
 .view-mode-btn.active:hover { background: var(--primary-2); border-color: var(--primary-2); }
 
-.week-nav-row {
-  display: flex;
+/* ===== Historial: navegador de periodo (Día y Semana comparten esto) =====
+   Columnas fijas para las flechas (grid, no flex) — su posición nunca
+   depende de cuánto mida el texto central. */
+.period-nav {
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr) 32px;
   align-items: center;
-  justify-content: center;
-  gap: 12px;
+  gap: 10px;
   padding: 14px 20px 0;
   flex-shrink: 0;
 }
-.week-nav-label {
-  font-size: 13.5px;
-  font-weight: 700;
-  color: var(--text);
-  text-align: center;
-}
-
-.day-nav-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 14px 20px 0;
-  flex-shrink: 0;
-}
-.day-nav-arrow {
-  flex-shrink: 0;
+.period-nav-arrow {
   width: 32px;
   height: 32px;
   display: flex;
@@ -1935,48 +1923,43 @@ button:disabled { opacity: 0.45; cursor: not-allowed; }
   font-weight: 800;
   line-height: 1;
 }
-.day-nav-arrow:hover:not(:disabled) {
+.period-nav-arrow:hover:not(:disabled) {
   background: var(--surface);
   border-color: var(--primary);
   color: var(--text-strong);
 }
-.day-nav-arrow:disabled { opacity: 0.35; cursor: not-allowed; }
-
-.day-nav-scroll {
-  display: flex;
-  align-items: center;
-  flex-wrap: nowrap;
-  gap: 8px;
-  overflow-x: auto;
-  scrollbar-width: thin;
-  padding-bottom: 4px;
-  flex: 1;
+.period-nav-arrow:disabled { opacity: 0.35; cursor: not-allowed; }
+.period-nav-label {
+  text-align: center;
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--text);
   min-width: 0;
+  overflow-wrap: break-word;
 }
 
-.day-chip {
-  position: relative;
+.date-picker-row {
+  display: flex;
+  justify-content: center;
+  padding: 8px 20px 0;
   flex-shrink: 0;
-  white-space: nowrap;
-  padding: 8px 14px;
-  background: var(--surface-3);
-  border: 1.5px solid var(--border-2);
+}
+.date-picker-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: transparent;
+  border: 1px dashed var(--border-2);
   border-radius: var(--radius-sm);
   color: var(--text-dim);
-  font-size: 12.5px;
+  font-size: 12px;
   font-weight: 600;
+  overflow: hidden;
   transition: background 0.15s, border-color 0.15s, color 0.15s;
 }
-.day-chip:hover { background: var(--surface); border-color: var(--primary); color: var(--text); }
-.day-chip-active {
-  background: var(--primary);
-  border-color: var(--primary);
-  color: white;
-  font-weight: 700;
-}
-.day-chip-active:hover { background: var(--primary-2); border-color: var(--primary-2); color: white; }
-.day-chip-icon { margin-right: 4px; }
-.day-chip-picker { overflow: hidden; }
+.date-picker-btn:hover { background: var(--surface-3); border-color: var(--primary); color: var(--text); }
 
 .day-date-input {
   position: absolute;
@@ -2367,8 +2350,8 @@ button:disabled { opacity: 0.45; cursor: not-allowed; }
   .trailer-meta { font-size: 10px; gap: 10px; }
 
   .modal-history .modal-header { padding: 16px 16px 12px; }
-  .modal-search-row, .view-mode-row, .day-nav-row, .week-nav-row, .day-summary-wrap, .orders-list-head { padding-left: 16px; padding-right: 16px; }
-  .week-nav-label { font-size: 12.5px; }
+  .modal-search-row, .view-mode-row, .period-nav, .date-picker-row, .day-summary-wrap, .orders-list-head { padding-left: 16px; padding-right: 16px; }
+  .period-nav-label { font-size: 12.5px; }
   .modal-history .modal-body { padding: 12px 16px 16px; }
   .day-summary-card { flex-direction: column; align-items: flex-start; padding: 14px; }
   .day-summary-metrics { width: 100%; justify-content: space-between; gap: 8px; }

@@ -9,6 +9,8 @@ import {
   formatDayLong,
   formatDayLongNoYear,
   dayKeyParts,
+  getWeekStartKey,
+  formatWeekRangeLabel,
 } from '../lib/dateFormat';
 import { displayOrderNumber, isValidOrderNumber } from '../lib/orderNumber';
 import { useBodyScrollLock } from '../lib/useBodyScrollLock';
@@ -35,11 +37,21 @@ export default function HistoryModal({
   const [windowEnd, setWindowEnd] = useState(null); // día más reciente mostrado en la barra
   const [sortOrder, setSortOrder] = useState('desc'); // 'desc' | 'asc'
   const [searchQuery, setSearchQuery] = useState('');
+  const [viewMode, setViewMode] = useState('day'); // 'day' | 'week'
+  const [weekStart, setWeekStart] = useState(null); // dayKey del lunes de la semana mostrada
   const [openMenuId, setOpenMenuId] = useState(null);
   const [menuAnchorRect, setMenuAnchorRect] = useState(null);
   const [menuStyle, setMenuStyle] = useState(null);
   const dateInputRef = useRef(null);
   const menuRef = useRef(null);
+  const modalBodyRef = useRef(null);
+  const scrollPosRef = useRef(0);
+  // Solo la PRIMERA apertura de la sesión resetea a "Hoy"/orden por defecto.
+  // Reaperturas dentro de la misma sesión conservan día, filtro, búsqueda,
+  // orden y modo Día/Semana exactamente donde el usuario los dejó — el
+  // estado del componente ya persiste solo porque nunca se desmonta (`open`
+  // solo controla si retorna null), así que alcanza con no pisarlo de nuevo.
+  const hasOpenedRef = useRef(false);
 
   const timeZone = useMemo(() => getUserTimeZone(), []);
 
@@ -47,16 +59,19 @@ export default function HistoryModal({
     if (!open) return;
     let cancelled = false;
     setLoading(true);
-    setPendingDeleteId(null); // reset al abrir
+    setPendingDeleteId(null); // transitorio: siempre se reinicia al reabrir
     setOpenMenuId(null);
-    setSortOrder('desc');
-    setSearchQuery('');
-    // El historial SIEMPRE abre en HOY, sin importar dónde se haya quedado
-    // la última vez.
     const t = getLocalDayKey(new Date(), timeZone);
     setTodayKey(t);
-    setSelectedDay(t);
-    setWindowEnd(t);
+    if (!hasOpenedRef.current) {
+      // Primera vez en esta sesión: comportamiento de siempre, abrir en HOY.
+      setSelectedDay(t);
+      setWindowEnd(t);
+      setSortOrder('desc');
+      setSearchQuery('');
+      setWeekStart(getWeekStartKey(t));
+      hasOpenedRef.current = true;
+    }
     fetch('/api/orders?history=1')
       .then((r) => r.json())
       .then((data) => {
@@ -72,6 +87,13 @@ export default function HistoryModal({
   }, [open, timeZone]);
 
   useBodyScrollLock(open);
+
+  // Restaura el scroll de la lista después de que los datos ya renderizaron
+  // (evita el salto de restaurar contra un contenedor todavía vacío/"Cargando…").
+  useEffect(() => {
+    if (!open || loading || !modalBodyRef.current) return;
+    modalBodyRef.current.scrollTop = scrollPosRef.current;
+  }, [open, loading]);
 
   // Filtro por estado — cuenta y aplica sobre TODAS las órdenes (los tabs
   // muestran totales globales, no del día seleccionado).
@@ -103,6 +125,58 @@ export default function HistoryModal({
     return arr;
   }, [dayOrders, sortOrder]);
 
+  // ===== Resumen semanal (lunes → domingo) =====
+  const weekEndKey = useMemo(
+    () => (weekStart ? addDaysToKey(weekStart, 6) : null),
+    [weekStart]
+  );
+
+  const weekOrders = useMemo(() => {
+    if (!weekStart || !weekEndKey) return [];
+    return filtered.filter((o) => {
+      const k = getLocalDayKey(o.createdAt, timeZone);
+      return k >= weekStart && k <= weekEndKey;
+    });
+  }, [filtered, weekStart, weekEndKey, timeZone]);
+
+  const sortedWeekOrders = useMemo(() => {
+    const arr = [...weekOrders];
+    arr.sort((a, b) => {
+      const ta = new Date(a.createdAt).getTime();
+      const tb = new Date(b.createdAt).getTime();
+      return sortOrder === 'asc' ? ta - tb : tb - ta;
+    });
+    return arr;
+  }, [weekOrders, sortOrder]);
+
+  const weekSummary = useMemo(() => {
+    const acc = weekOrders.reduce(
+      (a, o) => {
+        a.orders += 1;
+        a.pallets += o.boxes.length;
+        a.meters += o.totalMeters;
+        return a;
+      },
+      { orders: 0, pallets: 0, meters: 0 }
+    );
+    acc.avgPallets = acc.orders > 0 ? acc.pallets / acc.orders : 0;
+    return acc;
+  }, [weekOrders]);
+
+  const currentWeekStart = todayKey ? getWeekStartKey(todayKey) : null;
+  const isCurrentWeek = weekStart === currentWeekStart;
+
+  function goPrevWeek() {
+    setWeekStart((w) => addDaysToKey(w, -7));
+  }
+
+  function goNextWeek() {
+    setWeekStart((w) => {
+      const next = addDaysToKey(w, 7);
+      return currentWeekStart && next > currentWeekStart ? currentWeekStart : next;
+    });
+  }
+
   // ===== Búsqueda global =====
   // Trabaja sobre `filtered` (ya con Todas/Activas/Archivadas aplicado) y NO
   // sobre el día seleccionado — así encuentra una orden sin importar cuándo
@@ -130,8 +204,15 @@ export default function HistoryModal({
   }, [searchResults, sortOrder]);
 
   // Lista que realmente se muestra: resultados de búsqueda global si hay
-  // texto, o el día seleccionado como siempre.
-  const visibleOrders = searchActive ? sortedSearchResults : sortedDayOrders;
+  // texto (con prioridad sobre Día/Semana), o el modo Día/Semana activo.
+  const visibleOrders = searchActive
+    ? sortedSearchResults
+    : viewMode === 'week'
+    ? sortedWeekOrders
+    : sortedDayOrders;
+  // En semana o búsqueda, los resultados pueden ser de días distintos —
+  // mostramos fecha + hora en la fila en vez de solo la hora.
+  const showFullDateInRows = searchActive || viewMode === 'week';
 
   function clearSearch() {
     setSearchQuery('');
@@ -379,120 +460,217 @@ export default function HistoryModal({
           </div>
         </div>
 
-        <div className="day-nav-row">
+        <div className="view-mode-row">
           <button
             type="button"
-            className="day-nav-arrow"
-            onClick={goOlder}
-            aria-label="Días anteriores"
+            className={`view-mode-btn ${viewMode === 'day' ? 'active' : ''}`}
+            onClick={() => setViewMode('day')}
           >
-            ‹
+            Día
           </button>
+          <button
+            type="button"
+            className={`view-mode-btn ${viewMode === 'week' ? 'active' : ''}`}
+            onClick={() => setViewMode('week')}
+          >
+            Semana
+          </button>
+        </div>
 
-          <div className="day-nav-scroll">
-            {windowDays.map((dayKey) => (
+        {viewMode === 'day' ? (
+          <>
+            <div className="day-nav-row">
               <button
-                key={dayKey}
                 type="button"
-                className={`day-chip ${
-                  dayKey === selectedDay ? 'day-chip-active' : ''
-                }`}
-                onClick={() => setSelectedDay(dayKey)}
+                className="day-nav-arrow"
+                onClick={goOlder}
+                aria-label="Días anteriores"
               >
-                {dayKey === todayKey && (
+                ‹
+              </button>
+
+              <div className="day-nav-scroll">
+                {windowDays.map((dayKey) => (
+                  <button
+                    key={dayKey}
+                    type="button"
+                    className={`day-chip ${
+                      dayKey === selectedDay ? 'day-chip-active' : ''
+                    }`}
+                    onClick={() => setSelectedDay(dayKey)}
+                  >
+                    {dayKey === todayKey && (
+                      <span className="day-chip-icon" aria-hidden="true">
+                        📅
+                      </span>
+                    )}
+                    {dayChipLabel(dayKey)}
+                  </button>
+                ))}
+
+                <button
+                  type="button"
+                  className="day-chip day-chip-picker"
+                  onClick={openDatePicker}
+                >
                   <span className="day-chip-icon" aria-hidden="true">
                     📅
                   </span>
-                )}
-                {dayChipLabel(dayKey)}
+                  Seleccionar fecha
+                  <input
+                    ref={dateInputRef}
+                    type="date"
+                    className="day-date-input"
+                    max={todayKey || undefined}
+                    value={selectedDay || ''}
+                    onChange={(e) => pickDate(e.target.value)}
+                    aria-label="Elegir fecha"
+                  />
+                </button>
+              </div>
+
+              <button
+                type="button"
+                className="day-nav-arrow"
+                onClick={goNewer}
+                disabled={windowEnd === todayKey}
+                aria-label="Días más recientes"
+              >
+                ›
               </button>
-            ))}
+            </div>
 
-            <button
-              type="button"
-              className="day-chip day-chip-picker"
-              onClick={openDatePicker}
-            >
-              <span className="day-chip-icon" aria-hidden="true">
-                📅
-              </span>
-              Seleccionar fecha
-              <input
-                ref={dateInputRef}
-                type="date"
-                className="day-date-input"
-                max={todayKey || undefined}
-                value={selectedDay || ''}
-                onChange={(e) => pickDate(e.target.value)}
-                aria-label="Elegir fecha"
-              />
-            </button>
-          </div>
-
-          <button
-            type="button"
-            className="day-nav-arrow"
-            onClick={goNewer}
-            disabled={windowEnd === todayKey}
-            aria-label="Días más recientes"
-          >
-            ›
-          </button>
-        </div>
-
-        <div className="day-summary-wrap">
-          <div className="day-summary-card">
-            <div className="day-summary-head">
-              <span className="day-summary-icon" aria-hidden="true">
-                📅
-              </span>
-              <div>
-                <p className="day-summary-title">
-                  {selectedDay ? dayCardLabel(selectedDay) : ''}
-                </p>
-                <p className="day-summary-sub">
-                  Órdenes registradas en este día
-                </p>
+            <div className="day-summary-wrap">
+              <div className="day-summary-card">
+                <div className="day-summary-head">
+                  <span className="day-summary-icon" aria-hidden="true">
+                    📅
+                  </span>
+                  <div>
+                    <p className="day-summary-title">
+                      {selectedDay ? dayCardLabel(selectedDay) : ''}
+                    </p>
+                    <p className="day-summary-sub">
+                      Órdenes registradas en este día
+                    </p>
+                  </div>
+                </div>
+                <div className="day-summary-metrics">
+                  <div className="day-summary-metric">
+                    <span className="day-summary-metric-icon" aria-hidden="true">
+                      📦
+                    </span>
+                    <span className="day-summary-metric-num">
+                      {daySummary.orders}
+                    </span>
+                    <span className="day-summary-metric-lbl">órdenes</span>
+                  </div>
+                  <div className="day-summary-divider" aria-hidden="true" />
+                  <div className="day-summary-metric">
+                    <span className="day-summary-metric-icon" aria-hidden="true">
+                      ▦
+                    </span>
+                    <span className="day-summary-metric-num">
+                      {daySummary.pallets}
+                    </span>
+                    <span className="day-summary-metric-lbl">tarimas</span>
+                  </div>
+                  <div className="day-summary-divider" aria-hidden="true" />
+                  <div className="day-summary-metric">
+                    <span className="day-summary-metric-icon" aria-hidden="true">
+                      📏
+                    </span>
+                    <span className="day-summary-metric-num">
+                      {daySummary.meters.toFixed(2)}
+                    </span>
+                    <span className="day-summary-metric-lbl">m lineales</span>
+                  </div>
+                </div>
               </div>
             </div>
-            <div className="day-summary-metrics">
-              <div className="day-summary-metric">
-                <span className="day-summary-metric-icon" aria-hidden="true">
-                  📦
-                </span>
-                <span className="day-summary-metric-num">
-                  {daySummary.orders}
-                </span>
-                <span className="day-summary-metric-lbl">órdenes</span>
-              </div>
-              <div className="day-summary-divider" aria-hidden="true" />
-              <div className="day-summary-metric">
-                <span className="day-summary-metric-icon" aria-hidden="true">
-                  ▦
-                </span>
-                <span className="day-summary-metric-num">
-                  {daySummary.pallets}
-                </span>
-                <span className="day-summary-metric-lbl">tarimas</span>
-              </div>
-              <div className="day-summary-divider" aria-hidden="true" />
-              <div className="day-summary-metric">
-                <span className="day-summary-metric-icon" aria-hidden="true">
-                  📏
-                </span>
-                <span className="day-summary-metric-num">
-                  {daySummary.meters.toFixed(2)}
-                </span>
-                <span className="day-summary-metric-lbl">m lineales</span>
+          </>
+        ) : (
+          <>
+            <div className="week-nav-row">
+              <button
+                type="button"
+                className="day-nav-arrow"
+                onClick={goPrevWeek}
+                aria-label="Semana anterior"
+              >
+                ‹
+              </button>
+              <span className="week-nav-label">
+                Semana · {weekStart ? formatWeekRangeLabel(weekStart) : ''}
+              </span>
+              <button
+                type="button"
+                className="day-nav-arrow"
+                onClick={goNextWeek}
+                disabled={isCurrentWeek}
+                aria-label="Semana siguiente"
+              >
+                ›
+              </button>
+            </div>
+
+            <div className="day-summary-wrap">
+              <div className="day-summary-card">
+                <div className="day-summary-head">
+                  <span className="day-summary-icon" aria-hidden="true">
+                    📊
+                  </span>
+                  <div>
+                    <p className="day-summary-title">
+                      Semana · {weekStart ? formatWeekRangeLabel(weekStart) : ''}
+                    </p>
+                    <p className="day-summary-sub">
+                      Promedio por orden: {weekSummary.avgPallets.toFixed(1)} tarimas
+                    </p>
+                  </div>
+                </div>
+                <div className="day-summary-metrics">
+                  <div className="day-summary-metric">
+                    <span className="day-summary-metric-icon" aria-hidden="true">
+                      📦
+                    </span>
+                    <span className="day-summary-metric-num">
+                      {weekSummary.orders}
+                    </span>
+                    <span className="day-summary-metric-lbl">órdenes</span>
+                  </div>
+                  <div className="day-summary-divider" aria-hidden="true" />
+                  <div className="day-summary-metric">
+                    <span className="day-summary-metric-icon" aria-hidden="true">
+                      ▦
+                    </span>
+                    <span className="day-summary-metric-num">
+                      {weekSummary.pallets}
+                    </span>
+                    <span className="day-summary-metric-lbl">tarimas</span>
+                  </div>
+                  <div className="day-summary-divider" aria-hidden="true" />
+                  <div className="day-summary-metric">
+                    <span className="day-summary-metric-icon" aria-hidden="true">
+                      📏
+                    </span>
+                    <span className="day-summary-metric-num">
+                      {weekSummary.meters.toFixed(2)}
+                    </span>
+                    <span className="day-summary-metric-lbl">m lineales</span>
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
-        </div>
+          </>
+        )}
 
         <div className="orders-list-head">
           <h3>
             {searchActive
               ? `Resultados de búsqueda (${sortedSearchResults.length})`
+              : viewMode === 'week'
+              ? `Órdenes de la semana (${weekOrders.length})`
               : selectedDay
               ? dayHeaderLabel(selectedDay, dayOrders.length)
               : ''}
@@ -508,7 +686,14 @@ export default function HistoryModal({
           </select>
         </div>
 
-        <div className="modal-body" onClick={() => setOpenMenuId(null)}>
+        <div
+          className="modal-body"
+          ref={modalBodyRef}
+          onClick={() => setOpenMenuId(null)}
+          onScroll={(e) => {
+            scrollPosRef.current = e.currentTarget.scrollTop;
+          }}
+        >
           {loading ? (
             <p className="empty">Cargando…</p>
           ) : visibleOrders.length === 0 ? (
@@ -522,6 +707,10 @@ export default function HistoryModal({
               <p className="empty-day-sub">
                 {searchActive
                   ? `No hay resultados para "${trimmedQuery}".`
+                  : viewMode === 'week'
+                  ? `No se encontraron órdenes para la semana del ${
+                      weekStart ? formatWeekRangeLabel(weekStart) : ''
+                    }.`
                   : `No se encontraron órdenes para el ${
                       selectedDay ? formatDayLong(selectedDay) : ''
                     }.`}
@@ -534,7 +723,7 @@ export default function HistoryModal({
                 o.boxes.forEach((b) => {
                   counts[b.inches] = (counts[b.inches] || 0) + 1;
                 });
-                const hora = searchActive
+                const hora = showFullDateInRows
                   ? fullDateTimeLabel(o)
                   : formatLocalDate(o.createdAt, { timeStyle: 'short' });
                 const isPending = pendingDeleteId === o._id;

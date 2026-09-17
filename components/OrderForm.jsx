@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { SIZE_OPTIONS, SIZE_TABLE } from '../data/sizeTable';
 import { getSizeColor } from '../data/sizeColors';
 import { packBoxes } from '../lib/packing';
@@ -19,6 +19,12 @@ export default function OrderForm({
   onSave,
   onCancel,
   saving,
+  // Se incrementa cada vez que se presiona "Nueva orden" en el modal de
+  // confirmación. El input de número de orden ya está montado desde antes
+  // (el modal flota por encima, no reemplaza este form), así que el
+  // `autoFocus` del input no alcanza a dispararse otra vez — este efecto
+  // fuerza el foco explícitamente en ese momento.
+  focusSignal,
 }) {
   const [orderNumber, setOrderNumber] = useState('');
   const [orderError, setOrderError] = useState(null);
@@ -26,6 +32,11 @@ export default function OrderForm({
   // qtyStr es string para permitir estado vacío mientras el usuario escribe.
   // El número final se calcula a partir de qtyStr en submit/+/-/blur.
   const [qtyStr, setQtyStr] = useState('1');
+  const orderInputRef = useRef(null);
+
+  useEffect(() => {
+    if (!draft && focusSignal) orderInputRef.current?.focus();
+  }, [focusSignal, draft]);
 
   // Estado A: aún no se ingresó el # orden
   if (!draft) {
@@ -49,6 +60,7 @@ export default function OrderForm({
         <div className="field">
           <label>Número de orden</label>
           <input
+            ref={orderInputRef}
             type="text"
             inputMode="text"
             value={orderNumber}

@@ -3,6 +3,17 @@
 // para saber si ya se le mostró al usuario el aviso de la última versión).
 export const CHANGELOG = [
   {
+    version: '1.7.0',
+    date: '2026-09-17',
+    title: 'Nueva orden, memoria del historial, tooltip de tarimas y resumen semanal',
+    changes: [
+      'Al guardar una orden aparece una confirmación clara con el botón "Nueva orden" (limpia la captura para empezar otra) y "Ver PDF" — ya no se resetea el formulario automáticamente.',
+      'El Historial ahora recuerda, durante la sesión, el día/semana, el filtro, la búsqueda, el orden y el scroll — abrir "Ver simulación" y cerrarla ya no te regresa a Hoy.',
+      'Nuevo tooltip al pasar el mouse (o tocar) sobre una tarima del trailer: pulgadas, carril, posición, longitud y orden — sin llenar el dibujo de texto permanente.',
+      'Nuevo selector Día/Semana en el Historial: el modo Semana muestra un resumen (órdenes, tarimas, metros, promedio por orden) respetando Todas/Activas/Archivadas.',
+    ],
+  },
+  {
     version: '1.6.0',
     date: '2026-09-17',
     title: 'Buscador de órdenes en el Historial',

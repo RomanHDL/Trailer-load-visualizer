@@ -7,6 +7,7 @@ import LimitModal from '../components/LimitModal';
 import ChangelogModal from '../components/ChangelogModal';
 import WhatsNewModal from '../components/WhatsNewModal';
 import SimulationModal from '../components/SimulationModal';
+import SavedConfirmationModal from '../components/SavedConfirmationModal';
 import { SIZE_TABLE } from '../data/sizeTable';
 import { packBoxes } from '../lib/packing';
 import { CURRENT_VERSION } from '../data/changelog';
@@ -40,6 +41,16 @@ export default function Home() {
   const [limitInfo, setLimitInfo] = useState(null);
   const [theme, setTheme] = useState('dark');
   const [simulationOrder, setSimulationOrder] = useState(null);
+  // Confirmación post-guardado (ventana flotante): { orderNumber, palletCount,
+  // totalMeters, order }. Se muestra encima de todo hasta que el usuario
+  // presione "Nueva orden" — así puede revisar/volver a bajar el PDF sin
+  // arriesgarse a perder el contexto de lo que acaba de guardar.
+  const [justSaved, setJustSaved] = useState(null);
+  // Se incrementa en cada "Nueva orden" para forzar el foco del campo
+  // "No. de orden" (ver OrderForm) — el input no se remonta solo porque el
+  // modal de confirmación cierre, así que el autoFocus del navegador no
+  // vuelve a disparar por sí solo.
+  const [focusSignal, setFocusSignal] = useState(0);
   const draftHydrated = useRef(false);
 
   // Aplica el tema lo antes posible (primer render en cliente) para evitar
@@ -365,6 +376,12 @@ export default function Home() {
       nextOrders = [...orders, savedOrder];
       setOrders(nextOrders);
       setDraft(null);
+      setJustSaved({
+        orderNumber: savedOrder.orderNumber,
+        palletCount: savedOrder.boxes.length,
+        totalMeters: savedOrder.totalMeters,
+        order: savedOrder,
+      });
       try {
         localStorage.removeItem(DRAFT_STORAGE_KEY);
       } catch {}
@@ -401,6 +418,14 @@ export default function Home() {
     } finally {
       setSaving(false);
     }
+  }
+
+  // Deja el sistema listo para capturar otra orden desde cero. La orden que
+  // se acaba de guardar ya está persistida y en `orders` — esto solo limpia
+  // el estado de UI de la confirmación (no vuelve a guardar nada).
+  function startNewOrder() {
+    setJustSaved(null);
+    setFocusSignal((n) => n + 1);
   }
 
   // La confirmación se maneja inline en el modal del historial.
@@ -629,6 +654,7 @@ export default function Home() {
             onSave={saveDraft}
             onCancel={cancelDraft}
             saving={saving}
+            focusSignal={focusSignal}
           />
         </section>
 
@@ -687,6 +713,12 @@ export default function Home() {
       />
 
       <LimitModal data={limitInfo} onClose={() => setLimitInfo(null)} />
+
+      <SavedConfirmationModal
+        data={justSaved}
+        onStartNew={startNewOrder}
+        onViewPdf={() => justSaved && reprintPdf(justSaved.order)}
+      />
 
       <ChangelogModal
         open={showChangelog}

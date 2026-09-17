@@ -1,4 +1,5 @@
-import { useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { packBoxes } from '../lib/packing';
 import {
   displayOrderNumber,
@@ -8,6 +9,48 @@ import { getSizeColor } from '../data/sizeColors';
 import SizeLegend from './SizeLegend';
 
 const DRAG_THRESHOLD = 5; // px de movimiento mínimo para considerar drag
+const TAP_THRESHOLD = 6; // px de movimiento máximo para seguir considerándose "tap"
+
+// Tooltip informativo de una tarima — mismo dato en desktop (hover) y
+// touch (tap). `placed` sirve solo para calcular la posición dentro del
+// carril; el resto sale directo de la tarima.
+function PalletTooltip({ box, placed, style, tooltipRef }) {
+  const laneLabel = box.full
+    ? 'Ancho completo'
+    : box.lane === 1
+    ? 'Carril superior'
+    : 'Carril inferior';
+  const laneItems = placed.filter((p) => p.full || p.lane === box.lane);
+  const position = laneItems.findIndex((p) => p.idx === box.idx) + 1;
+  const accent = getSizeColor(box.inches).bg;
+
+  return (
+    <div
+      ref={tooltipRef}
+      className="pallet-tooltip"
+      style={style ? { ...style, visibility: 'visible' } : { visibility: 'hidden' }}
+    >
+      <div className="pallet-tooltip-accent" style={{ background: accent }} />
+      <div className="pallet-tooltip-title">{box.inches}"</div>
+      <div className="pallet-tooltip-row">
+        <span>Carril</span>
+        <strong>{laneLabel}</strong>
+      </div>
+      <div className="pallet-tooltip-row">
+        <span>Posición</span>
+        <strong>{position}</strong>
+      </div>
+      <div className="pallet-tooltip-row">
+        <span>Longitud</span>
+        <strong>{box.meters.toFixed(2)} m</strong>
+      </div>
+      <div className="pallet-tooltip-row">
+        <span>Orden</span>
+        <strong>{displayOrderNumber(box.orderNumber)}</strong>
+      </div>
+    </div>
+  );
+}
 
 export default function TrailerView({
   orders,
@@ -26,6 +69,16 @@ export default function TrailerView({
   const [drag, setDrag] = useState(null);
   // drag = { draftIdx, pointerId, startX, startY, currentX, currentY, moved, preview }
   // preview = { mode: 'swap', targetIdx } | { mode: 'insert', targetIdx, atMeters, lane }
+
+  // ===== Tooltip de información por tarima =====
+  // Desktop: hover (mouseenter/leave). Touch: tap corto (se diferencia de un
+  // drag real por el mismo tipo de umbral de movimiento que ya usa el
+  // reordenamiento). `tapInfoRef` es independiente del estado de drag para
+  // que funcione igual en tarimas no-draft (órdenes guardadas / snapshot).
+  const [tooltip, setTooltip] = useState(null); // { box, anchorRect }
+  const [tooltipStyle, setTooltipStyle] = useState(null);
+  const tooltipRef = useRef(null);
+  const tapInfoRef = useRef(null); // { box, startX, startY, pointerType }
 
   // El tope real de tolerancia puede ser mayor al que se muestra en pantalla
   // (ver CAPACITY_LIMIT en pages/index.js). `trailerLength` sigue marcando
@@ -132,8 +185,35 @@ export default function TrailerView({
     };
   }
 
-  // ===== DRAG HANDLERS =====
+  function showTooltipFor(box, currentTarget) {
+    const rect = currentTarget.getBoundingClientRect();
+    setTooltip({
+      box,
+      anchorRect: { top: rect.top, bottom: rect.bottom, left: rect.left, width: rect.width },
+    });
+  }
+
+  function toggleTooltipFor(box, currentTarget) {
+    setTooltip((prev) => {
+      if (prev && prev.box.idx === box.idx) return null;
+      const rect = currentTarget.getBoundingClientRect();
+      return {
+        box,
+        anchorRect: { top: rect.top, bottom: rect.bottom, left: rect.left, width: rect.width },
+      };
+    });
+  }
+
+  // ===== DRAG HANDLERS (también trackean tap, para el tooltip) =====
   function handlePointerDown(e, b) {
+    // Se guarda SIEMPRE (tarima del draft o no) para poder distinguir un tap
+    // de un drag al soltar, y mostrar el tooltip en cualquier tarima.
+    tapInfoRef.current = {
+      box: b,
+      startX: e.clientX,
+      startY: e.clientY,
+      pointerType: e.pointerType,
+    };
     if (!b.isDraft || !onReorderDraft) return;
     e.preventDefault();
     try {
@@ -157,33 +237,51 @@ export default function TrailerView({
     const dy = e.clientY - drag.startY;
     const moved =
       drag.moved || Math.abs(dx) > DRAG_THRESHOLD || Math.abs(dy) > DRAG_THRESHOLD;
+    if (moved && !drag.moved) setTooltip(null); // empezó un drag real: ocultar tooltip
     const preview = moved
       ? computeDragTarget(e.clientX, e.clientY, drag.draftIdx)
       : null;
     setDrag({ ...drag, currentX: e.clientX, currentY: e.clientY, moved, preview });
   }
 
-  function handlePointerUp() {
-    if (!drag || !drag.moved || !draft) {
-      setDrag(null);
-      return;
-    }
-    const target = drag.preview;
-    if (target) {
-      if (target.mode === 'swap' && target.targetIdx !== drag.draftIdx) {
-        onSwapDraft?.(drag.draftIdx, target.targetIdx);
-      } else if (
-        target.mode === 'insert' &&
-        target.targetIdx !== drag.draftIdx
-      ) {
-        onReorderDraft(drag.draftIdx, target.targetIdx);
+  function handlePointerUp(e) {
+    // Si había un drag de tarima del draft en curso, resolverlo (igual que
+    // antes) y no mostrar tooltip — fue un arrastre, no un tap.
+    if (drag) {
+      if (drag.moved) {
+        const target = drag.preview;
+        if (target && draft) {
+          if (target.mode === 'swap' && target.targetIdx !== drag.draftIdx) {
+            onSwapDraft?.(drag.draftIdx, target.targetIdx);
+          } else if (
+            target.mode === 'insert' &&
+            target.targetIdx !== drag.draftIdx
+          ) {
+            onReorderDraft(drag.draftIdx, target.targetIdx);
+          }
+        }
+        setDrag(null);
+        tapInfoRef.current = null;
+        return;
       }
+      setDrag(null);
     }
-    setDrag(null);
+
+    // Tap (click corto de mouse, o touch sin moverse más que el umbral).
+    const info = tapInfoRef.current;
+    tapInfoRef.current = null;
+    if (!info) return;
+    const dx = e.clientX - info.startX;
+    const dy = e.clientY - info.startY;
+    if (Math.abs(dx) > TAP_THRESHOLD || Math.abs(dy) > TAP_THRESHOLD) return;
+    // El mouse ya muestra el tooltip por hover; el tap solo alterna en touch/pen.
+    if (info.pointerType === 'mouse') return;
+    toggleTooltipFor(info.box, e.currentTarget);
   }
 
   function handlePointerCancel() {
     setDrag(null);
+    tapInfoRef.current = null;
   }
 
   // Placeholder visual de "acá va a quedar" mientras se arrastra en modo
@@ -194,6 +292,45 @@ export default function TrailerView({
       ? drag.preview
       : null;
   const draggedBox = drag ? draftPlaced.find((p) => p.draftIdx === drag.draftIdx) : null;
+
+  // Posiciona el tooltip (portal, position: fixed) cerca de la tarima, con
+  // su tamaño real ya medido, evitando salirse de la pantalla — mismo
+  // patrón que el menú "..." del historial.
+  useLayoutEffect(() => {
+    if (!tooltip || !tooltipRef.current) {
+      setTooltipStyle(null);
+      return;
+    }
+    const { offsetWidth: w, offsetHeight: h } = tooltipRef.current;
+    const margin = 8;
+    const { anchorRect: a } = tooltip;
+    let left = a.left + a.width / 2 - w / 2;
+    left = Math.max(margin, Math.min(left, window.innerWidth - w - margin));
+    let top = a.top - h - 8;
+    if (top < margin) top = a.bottom + 8;
+    setTooltipStyle({ top, left });
+  }, [tooltip]);
+
+  // Cierra el tooltip al tocar/hacer click fuera de cualquier tarima, o al
+  // scrollear/cambiar tamaño de ventana.
+  useEffect(() => {
+    if (!tooltip) return;
+    function handleOutside(e) {
+      if (e.target.closest && e.target.closest('.box')) return;
+      setTooltip(null);
+    }
+    function handleClose() {
+      setTooltip(null);
+    }
+    document.addEventListener('pointerdown', handleOutside, true);
+    window.addEventListener('scroll', handleClose, true);
+    window.addEventListener('resize', handleClose);
+    return () => {
+      document.removeEventListener('pointerdown', handleOutside, true);
+      window.removeEventListener('scroll', handleClose, true);
+      window.removeEventListener('resize', handleClose);
+    };
+  }, [tooltip]);
 
   return (
     <div className="trailer-wrap">
@@ -314,13 +451,16 @@ export default function TrailerView({
                       background: b.color,
                       ...dragStyle,
                     }}
-                    title={`Orden ${displayOrderNumber(b.orderNumber)} • ${b.inches}" • ${b.meters} m${
-                      b.isDraft ? ' · arrastrá para reordenar' : ''
-                    }`}
+                    aria-label={`Orden ${displayOrderNumber(b.orderNumber)}, ${b.inches} pulgadas, ${b.meters} metros`}
                     onPointerDown={(e) => handlePointerDown(e, b)}
                     onPointerMove={handlePointerMove}
                     onPointerUp={handlePointerUp}
                     onPointerCancel={handlePointerCancel}
+                    onMouseEnter={(e) => {
+                      if (drag) return;
+                      showTooltipFor(b, e.currentTarget);
+                    }}
+                    onMouseLeave={() => setTooltip(null)}
                   >
                     <span className="box-corner box-corner-tl" aria-hidden="true" />
                     <span className="box-corner box-corner-tr" aria-hidden="true" />
@@ -398,6 +538,18 @@ export default function TrailerView({
           </span>
         </div>
       </div>
+
+      {tooltip &&
+        typeof document !== 'undefined' &&
+        createPortal(
+          <PalletTooltip
+            box={tooltip.box}
+            placed={placed}
+            style={tooltipStyle}
+            tooltipRef={tooltipRef}
+          />,
+          document.body
+        )}
     </div>
   );
 }

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { SIZE_OPTIONS, SIZE_TABLE } from '../data/sizeTable';
+import { getSizeColor } from '../data/sizeColors';
 import { packBoxes } from '../lib/packing';
 import {
   isValidOrderNumber,
@@ -205,6 +206,11 @@ export default function OrderForm({
                 −
               </button>
               <span className="chip-label">
+                <span
+                  className="chip-swatch"
+                  style={{ background: getSizeColor(g.inches).bg }}
+                  aria-hidden="true"
+                />
                 <strong>{g.qty}</strong>× {g.inches}"
               </span>
               <button

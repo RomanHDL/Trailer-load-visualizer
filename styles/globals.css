@@ -571,6 +571,7 @@ button:disabled { opacity: 0.45; cursor: not-allowed; }
   white-space: nowrap;
   user-select: none;
 }
+.chip-label .chip-swatch { margin-right: 6px; }
 .chip-label strong {
   font-weight: 800;
   color: var(--text-strong);
@@ -1014,6 +1015,20 @@ button:disabled { opacity: 0.45; cursor: not-allowed; }
   0%, 100% { opacity: 0.88; }
   50% { opacity: 1; }
 }
+
+/* Destino del drag & drop, mientras se arrastra una tarima */
+.box-drop-target {
+  box-shadow: 0 0 0 3px var(--primary), 0 3px 10px rgba(0, 0, 0, 0.5) !important;
+  filter: brightness(1.1);
+}
+.drop-placeholder {
+  position: absolute;
+  border: 2px dashed var(--primary);
+  border-radius: 5px;
+  background: rgba(59, 130, 246, 0.15);
+  z-index: 4;
+  pointer-events: none;
+}
 .box-label {
   display: flex;
   flex-direction: column;
@@ -1178,6 +1193,9 @@ button:disabled { opacity: 0.45; cursor: not-allowed; }
   gap: 5px;
 }
 .chip-sm {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
   background: var(--surface);
   color: var(--text);
   padding: 4px 10px;
@@ -1185,6 +1203,38 @@ button:disabled { opacity: 0.45; cursor: not-allowed; }
   font-weight: 600;
   border: 1px solid var(--border-2);
   border-radius: 999px;
+}
+.chip-swatch {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.25);
+}
+
+/* ===== Leyenda de colores por medida ===== */
+.size-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  padding: 2px 2px 4px;
+  margin-top: -4px;
+}
+.size-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--text-mute);
+  letter-spacing: 0.02em;
+}
+.size-legend-swatch {
+  width: 9px;
+  height: 9px;
+  border-radius: 3px;
+  flex-shrink: 0;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.2);
 }
 
 .order-actions {
@@ -1679,7 +1729,7 @@ button:disabled { opacity: 0.45; cursor: not-allowed; }
 }
 
 /* ===== Historial: navegador de días ===== */
-.modal-history { max-width: 1040px; }
+.modal-history { max-width: 1160px; }
 
 .day-nav-row {
   display: flex;
@@ -1872,20 +1922,21 @@ button:disabled { opacity: 0.45; cursor: not-allowed; }
 }
 .order-row-dot { opacity: 0.6; }
 
-.order-row-chips { display: flex; flex-wrap: wrap; gap: 5px; min-width: 0; }
+.order-row-chips { display: flex; flex-wrap: wrap; gap: 6px; min-width: 0; }
 
 .order-row-actions {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   flex-wrap: wrap;
   justify-content: flex-end;
+  padding-left: 6px;
 }
 
 .row-menu-wrap { position: relative; display: inline-flex; }
 .row-menu-btn {
-  width: 34px;
-  height: 34px;
+  width: 36px;
+  height: 36px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1908,11 +1959,20 @@ button:disabled { opacity: 0.45; cursor: not-allowed; }
   border-radius: var(--radius-sm);
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
   padding: 6px;
-  min-width: 160px;
+  min-width: 170px;
   z-index: 20;
   display: flex;
   flex-direction: column;
   gap: 2px;
+}
+/* Variante renderizada vía portal (document.body): posición fixed calculada
+   en JS, para que nunca quede recortada por el overflow del modal. */
+.row-menu-portal {
+  position: fixed;
+  right: auto;
+  top: 0;
+  left: 0;
+  z-index: 300;
 }
 .row-menu-item {
   text-align: left;
@@ -1950,11 +2010,11 @@ button:disabled { opacity: 0.45; cursor: not-allowed; }
   .history-meta, .history-chips { flex-shrink: 0; }
   .history-actions { margin-top: 0; }
 
-  .order-row { flex-direction: row; align-items: center; gap: 14px; }
+  .order-row { flex-direction: row; align-items: center; gap: 18px; padding: 14px 18px; }
   .order-row-left { flex: 0 0 auto; min-width: 170px; }
   .order-row-mid { flex-shrink: 0; }
   .order-row-chips { flex: 1; min-width: 120px; }
-  .order-row-actions { flex-shrink: 0; }
+  .order-row-actions { flex-shrink: 0; min-width: 96px; }
 }
 
 /* =========================================

@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import {
   formatLocalDate,
   getUserTimeZone,
@@ -9,6 +10,8 @@ import {
   formatDayLongNoYear,
 } from '../lib/dateFormat';
 import { displayOrderNumber, isValidOrderNumber } from '../lib/orderNumber';
+import { useBodyScrollLock } from '../lib/useBodyScrollLock';
+import { getSizeColor } from '../data/sizeColors';
 
 const DAY_WINDOW_SIZE = 4;
 
@@ -25,7 +28,10 @@ export default function HistoryModal({ open, onClose, onReprint, onDelete }) {
   const [windowEnd, setWindowEnd] = useState(null); // día más reciente mostrado en la barra
   const [sortOrder, setSortOrder] = useState('desc'); // 'desc' | 'asc'
   const [openMenuId, setOpenMenuId] = useState(null);
+  const [menuAnchorRect, setMenuAnchorRect] = useState(null);
+  const [menuStyle, setMenuStyle] = useState(null);
   const dateInputRef = useRef(null);
+  const menuRef = useRef(null);
 
   const timeZone = useMemo(() => getUserTimeZone(), []);
 
@@ -56,14 +62,7 @@ export default function HistoryModal({ open, onClose, onReprint, onDelete }) {
     };
   }, [open, timeZone]);
 
-  useEffect(() => {
-    if (!open) return;
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    return () => {
-      document.body.style.overflow = prev;
-    };
-  }, [open]);
+  useBodyScrollLock(open);
 
   // Filtro por estado — cuenta y aplica sobre TODAS las órdenes (los tabs
   // muestran totales globales, no del día seleccionado).
@@ -115,6 +114,45 @@ export default function HistoryModal({ open, onClose, onReprint, onDelete }) {
       addDaysToKey(windowEnd, -i)
     );
   }, [windowEnd]);
+
+  // Posiciona el menú "..." (portal, position: fixed) con su altura real ya
+  // medida, y lo hace aparecer arriba del botón si no entra abajo.
+  useLayoutEffect(() => {
+    if (!openMenuId || !menuAnchorRect || !menuRef.current) {
+      setMenuStyle(null);
+      return;
+    }
+    const { offsetWidth: w, offsetHeight: h } = menuRef.current;
+    const margin = 8;
+    let left = menuAnchorRect.right - w;
+    left = Math.max(margin, Math.min(left, window.innerWidth - w - margin));
+    let top = menuAnchorRect.bottom + 6;
+    if (top + h + margin > window.innerHeight) {
+      top = menuAnchorRect.top - h - 6;
+    }
+    setMenuStyle({ top, left });
+  }, [openMenuId, menuAnchorRect]);
+
+  // Cierra el menú al hacer click afuera, scrollear o cambiar el tamaño de
+  // ventana (evita que quede flotando en una posición ya desactualizada).
+  useEffect(() => {
+    if (!openMenuId) return;
+    function handleOutside(e) {
+      if (menuRef.current && menuRef.current.contains(e.target)) return;
+      setOpenMenuId(null);
+    }
+    function handleClose() {
+      setOpenMenuId(null);
+    }
+    document.addEventListener('pointerdown', handleOutside, true);
+    window.addEventListener('scroll', handleClose, true);
+    window.addEventListener('resize', handleClose);
+    return () => {
+      document.removeEventListener('pointerdown', handleOutside, true);
+      window.removeEventListener('scroll', handleClose, true);
+      window.removeEventListener('resize', handleClose);
+    };
+  }, [openMenuId]);
 
   if (!open) return null;
 
@@ -189,6 +227,26 @@ export default function HistoryModal({ open, onClose, onReprint, onDelete }) {
 
   function cancelDelete() {
     setPendingDeleteId(null);
+  }
+
+  // Abre/cierra el menú "..." de una fila. Guarda la posición real del botón
+  // (getBoundingClientRect) para que el menú se dibuje vía portal, fixed,
+  // fuera del overflow del modal — así nunca queda recortado.
+  function toggleRowMenu(id, e) {
+    e.stopPropagation();
+    if (openMenuId === id) {
+      setOpenMenuId(null);
+      return;
+    }
+    const rect = e.currentTarget.getBoundingClientRect();
+    setMenuAnchorRect({
+      top: rect.top,
+      bottom: rect.bottom,
+      left: rect.left,
+      right: rect.right,
+      width: rect.width,
+    });
+    setOpenMenuId(id);
   }
 
   return (
@@ -422,6 +480,11 @@ export default function HistoryModal({ open, onClose, onReprint, onDelete }) {
                         .sort((a, b) => Number(a[0]) - Number(b[0]))
                         .map(([inches, qty]) => (
                           <span className="chip-sm" key={inches}>
+                            <span
+                              className="chip-swatch"
+                              style={{ background: getSizeColor(Number(inches)).bg }}
+                              aria-hidden="true"
+                            />
                             {qty}× {inches}"
                           </span>
                         ))}
@@ -460,32 +523,12 @@ export default function HistoryModal({ open, onClose, onReprint, onDelete }) {
                             <button
                               type="button"
                               className="row-menu-btn"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setOpenMenuId(isMenuOpen ? null : o._id);
-                              }}
+                              onClick={(e) => toggleRowMenu(o._id, e)}
                               aria-label="Más acciones"
                               aria-expanded={isMenuOpen}
                             >
                               ⋯
                             </button>
-                            {isMenuOpen && (
-                              <div
-                                className="row-menu"
-                                onClick={(e) => e.stopPropagation()}
-                              >
-                                <button
-                                  type="button"
-                                  className="row-menu-item row-menu-item-danger"
-                                  onClick={() => {
-                                    setOpenMenuId(null);
-                                    setPendingDeleteId(o._id);
-                                  }}
-                                >
-                                  Eliminar orden
-                                </button>
-                              </div>
-                            )}
                           </div>
                         </>
                       )}
@@ -497,6 +540,29 @@ export default function HistoryModal({ open, onClose, onReprint, onDelete }) {
           )}
         </div>
       </div>
+
+      {openMenuId &&
+        typeof document !== 'undefined' &&
+        createPortal(
+          <div
+            ref={menuRef}
+            className="row-menu row-menu-portal"
+            style={menuStyle ? { ...menuStyle, visibility: 'visible' } : { visibility: 'hidden' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              type="button"
+              className="row-menu-item row-menu-item-danger"
+              onClick={() => {
+                setPendingDeleteId(openMenuId);
+                setOpenMenuId(null);
+              }}
+            >
+              Eliminar orden
+            </button>
+          </div>,
+          document.body
+        )}
     </div>
   );
 }

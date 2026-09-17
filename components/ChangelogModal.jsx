@@ -1,6 +1,8 @@
 import { CHANGELOG, CURRENT_VERSION, PREVIOUS_VERSION } from '../data/changelog';
+import { useBodyScrollLock } from '../lib/useBodyScrollLock';
 
 export default function ChangelogModal({ open, onClose }) {
+  useBodyScrollLock(open);
   if (!open) return null;
 
   return (

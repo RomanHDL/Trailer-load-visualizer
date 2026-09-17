@@ -3,6 +3,17 @@
 // para saber si ya se le mostró al usuario el aviso de la última versión).
 export const CHANGELOG = [
   {
+    version: '1.4.0',
+    date: '2026-09-17',
+    title: 'Historial más espacioso, colores por medida y drag & drop preciso',
+    changes: [
+      'Historial de órdenes: modal más ancho y con más espacio en la fila de acciones; el menú "···" ahora se abre siempre visible y completo, sin recortarse.',
+      'Cada medida (50", 55", 58", 65", 75", 86", 100") tiene su propio color, con una leyenda discreta junto al camión. Se ve en las tarimas del trailer, en los chips de la orden activa y en el historial.',
+      'Drag & drop del trailer corregido: al arrastrar una tarima ahora se ve en vivo dónde va a quedar, y se puede soltar sobre otra para intercambiarlas exactamente.',
+      'Al abrir "Actualizaciones" (y otros cuadros emergentes), la página de fondo ya no se mueve — el scroll queda contenido dentro del cuadro.',
+    ],
+  },
+  {
     version: '1.3.0',
     date: '2026-09-15',
     title: 'Modo claro/oscuro + aviso de novedades simplificado',

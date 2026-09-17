@@ -4,14 +4,9 @@ import {
   displayOrderNumber,
   displayOrderNumberShort,
 } from '../lib/orderNumber';
+import { getSizeColor } from '../data/sizeColors';
+import SizeLegend from './SizeLegend';
 
-const ORDER_COLORS = [
-  '#3b82f6', '#06b6d4', '#8b5cf6', '#ec4899',
-  '#f97316', '#84cc16', '#14b8a6', '#a855f7',
-  '#0ea5e9', '#f43f5e',
-];
-
-const DRAFT_COLOR = '#fbbf24';
 const DRAG_THRESHOLD = 5; // px de movimiento mínimo para considerar drag
 
 export default function TrailerView({
@@ -20,19 +15,21 @@ export default function TrailerView({
   trailerLength,
   capacityLimit,
   onReorderDraft,
+  onSwapDraft,
 }) {
   const bodyRef = useRef(null);
   const [drag, setDrag] = useState(null);
-  // drag = { draftIdx, pointerId, startX, startY, currentX, currentY, moved }
+  // drag = { draftIdx, pointerId, startX, startY, currentX, currentY, moved, preview }
+  // preview = { mode: 'swap', targetIdx } | { mode: 'insert', targetIdx, atMeters, lane }
 
   // Construir secuencia. Marcar draftIdx para los del draft.
   const sequence = [];
-  orders.forEach((o, idx) => {
+  orders.forEach((o) => {
     o.boxes.forEach((b) => {
       sequence.push({
         ...b,
         orderNumber: o.orderNumber,
-        color: ORDER_COLORS[idx % ORDER_COLORS.length],
+        color: getSizeColor(b.inches).bg,
         isDraft: false,
       });
     });
@@ -42,7 +39,7 @@ export default function TrailerView({
       sequence.push({
         ...b,
         orderNumber: draft.orderNumber,
-        color: DRAFT_COLOR,
+        color: getSizeColor(b.inches).bg,
         isDraft: true,
         draftIdx: i,
       });
@@ -70,8 +67,53 @@ export default function TrailerView({
   if (limitPct > 88) limitLabelTransform = 'translateX(-100%)';
   else if (limitPct < 12) limitLabelTransform = 'translateX(0)';
 
-  // Cajas del draft solamente, en orden de aparición en placed
+  // Cajas del draft solamente, en orden de aparición en placed (ya vienen en
+  // orden ascendente de "start" dentro de cada carril, porque el packing
+  // llena cada carril de forma acumulativa).
   const draftPlaced = placed.filter((p) => p.isDraft);
+
+  // Determina, para una posición de cursor (x,y) sobre el trailer, qué va a
+  // pasar si soltás ahí: swap exacto con la tarima que está debajo, o
+  // inserción en el hueco más cercano dentro del mismo carril que el cursor.
+  // Se usa tanto para la previsualización en vivo (pointermove) como para el
+  // resultado final (pointerup) — siempre son el mismo cálculo, así lo que
+  // se ve mientras se arrastra es exactamente lo que va a pasar al soltar.
+  function computeDragTarget(clientX, clientY, draftIdx) {
+    if (!bodyRef.current) return null;
+    const rect = bodyRef.current.getBoundingClientRect();
+    const cursorX = clientX - rect.left;
+    const cursorMeters = Math.max(
+      0,
+      Math.min(visualMax, (cursorX / rect.width) * visualMax)
+    );
+    const hoveredLane = clientY - rect.top < rect.height / 2 ? 1 : 2;
+
+    // Tarimas del draft en el carril donde está el cursor (o full-width),
+    // sin contar la que se está arrastrando.
+    const laneItems = draftPlaced.filter(
+      (p) =>
+        p.draftIdx !== draftIdx && (p.full || p.lane === hoveredLane)
+    );
+
+    // ¿El cursor está exactamente encima de otra tarima de ese carril?
+    // -> swap real con esa tarima.
+    const hovered = laneItems.find(
+      (p) => cursorMeters >= p.start && cursorMeters <= p.end
+    );
+    if (hovered) {
+      return { mode: 'swap', targetIdx: hovered.draftIdx, lane: hoveredLane };
+    }
+
+    // Si no, insertar en el hueco: antes de la primera tarima de ese carril
+    // que empiece después del cursor.
+    const next = laneItems.find((p) => p.start > cursorMeters);
+    return {
+      mode: 'insert',
+      targetIdx: next ? next.draftIdx : draft.boxes.length,
+      atMeters: next ? next.start : cursorMeters,
+      lane: hoveredLane,
+    };
+  }
 
   // ===== DRAG HANDLERS =====
   function handlePointerDown(e, b) {
@@ -88,6 +130,7 @@ export default function TrailerView({
       currentX: e.clientX,
       currentY: e.clientY,
       moved: false,
+      preview: null,
     });
   }
 
@@ -97,41 +140,27 @@ export default function TrailerView({
     const dy = e.clientY - drag.startY;
     const moved =
       drag.moved || Math.abs(dx) > DRAG_THRESHOLD || Math.abs(dy) > DRAG_THRESHOLD;
-    setDrag({ ...drag, currentX: e.clientX, currentY: e.clientY, moved });
+    const preview = moved
+      ? computeDragTarget(e.clientX, e.clientY, drag.draftIdx)
+      : null;
+    setDrag({ ...drag, currentX: e.clientX, currentY: e.clientY, moved, preview });
   }
 
-  function handlePointerUp(e) {
-    if (!drag) {
+  function handlePointerUp() {
+    if (!drag || !drag.moved || !draft) {
       setDrag(null);
       return;
     }
-    if (!drag.moved) {
-      setDrag(null);
-      return;
-    }
-    if (!bodyRef.current || !draft) {
-      setDrag(null);
-      return;
-    }
-    const rect = bodyRef.current.getBoundingClientRect();
-    const cursorX = e.clientX - rect.left;
-    const cursorMeters = Math.max(
-      0,
-      Math.min(visualMax, (cursorX / rect.width) * visualMax)
-    );
-
-    // Encontrar a qué posición DENTRO DEL DRAFT corresponde el cursor
-    let targetDraftIdx = draft.boxes.length;
-    for (let i = 0; i < draftPlaced.length; i++) {
-      const p = draftPlaced[i];
-      const center = p.start + p.meters / 2;
-      if (cursorMeters < center) {
-        targetDraftIdx = p.draftIdx;
-        break;
+    const target = drag.preview;
+    if (target) {
+      if (target.mode === 'swap' && target.targetIdx !== drag.draftIdx) {
+        onSwapDraft?.(drag.draftIdx, target.targetIdx);
+      } else if (
+        target.mode === 'insert' &&
+        target.targetIdx !== drag.draftIdx
+      ) {
+        onReorderDraft(drag.draftIdx, target.targetIdx);
       }
-    }
-    if (targetDraftIdx !== drag.draftIdx) {
-      onReorderDraft(drag.draftIdx, targetDraftIdx);
     }
     setDrag(null);
   }
@@ -139,6 +168,15 @@ export default function TrailerView({
   function handlePointerCancel() {
     setDrag(null);
   }
+
+  // Placeholder visual de "acá va a quedar" mientras se arrastra en modo
+  // inserción (en modo swap, en cambio, se resalta directamente la tarima
+  // destino con box-drop-target).
+  const insertPreview =
+    drag && drag.moved && drag.preview && drag.preview.mode === 'insert'
+      ? drag.preview
+      : null;
+  const draggedBox = drag ? draftPlaced.find((p) => p.draftIdx === drag.draftIdx) : null;
 
   return (
     <div className="trailer-wrap">
@@ -153,10 +191,12 @@ export default function TrailerView({
         </span>
         {draft && draft.boxes.length > 1 && (
           <span className="meta-item meta-item-hint">
-            Arrastrá las tarimas amarillas para reordenarlas
+            Arrastrá las tarimas con borde punteado para reordenarlas
           </span>
         )}
       </div>
+
+      <SizeLegend />
 
       <div className="trailer-scroll">
         <div className="truck-stage">
@@ -223,6 +263,12 @@ export default function TrailerView({
 
                 const isDragging =
                   drag && b.isDraft && b.draftIdx === drag.draftIdx;
+                const isDropTarget =
+                  drag &&
+                  drag.moved &&
+                  drag.preview?.mode === 'swap' &&
+                  b.isDraft &&
+                  b.draftIdx === drag.preview.targetIdx;
                 const dragStyle = isDragging
                   ? {
                       transform: `translate(${drag.currentX - drag.startX}px, ${
@@ -242,7 +288,9 @@ export default function TrailerView({
                       b.isDraft ? 'box-draggable' : ''
                     } ${b.isDraft ? 'box-draft' : ''} ${
                       b.exceedsLimit ? 'box-over' : ''
-                    } ${isDragging ? 'box-dragging' : ''}`}
+                    } ${isDragging ? 'box-dragging' : ''} ${
+                      isDropTarget ? 'box-drop-target' : ''
+                    }`}
                     style={{
                       left: `${left}%`,
                       width: `${width}%`,
@@ -269,6 +317,19 @@ export default function TrailerView({
                   </div>
                 );
               })}
+
+              {insertPreview && draggedBox && (
+                <div
+                  className={`drop-placeholder ${
+                    insertPreview.lane === 1 ? 'box-lane1' : 'box-lane2'
+                  }`}
+                  style={{
+                    left: `${(insertPreview.atMeters / visualMax) * 100}%`,
+                    width: `${(draggedBox.meters / visualMax) * 100}%`,
+                  }}
+                  aria-hidden="true"
+                />
+              )}
 
               {placed.length === 0 && (
                 <div className="trailer-empty">

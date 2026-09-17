@@ -2,7 +2,10 @@
 // el trailer. No se agrega nada parcial: o entra la cantidad completa, o se
 // explica cuánto falta y cuántas sí caben.
 
+import { useBodyScrollLock } from '../lib/useBodyScrollLock';
+
 export default function LimitModal({ data, onClose }) {
+  useBodyScrollLock(!!data);
   if (!data) return null;
 
   const {

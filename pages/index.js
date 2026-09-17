@@ -214,6 +214,26 @@ export default function Home() {
     setDraft((d) => ({ ...d, boxes: [...d.boxes, ...newBoxes] }));
   }
 
+  // Intercambia dos cajas del draft directamente (drop exacto sobre otra
+  // tarima) — a diferencia de reorderDraftBox, no desplaza el resto.
+  function swapDraftBoxes(idxA, idxB) {
+    setDraft((d) => {
+      if (!d || !Array.isArray(d.boxes)) return d;
+      if (
+        idxA < 0 ||
+        idxA >= d.boxes.length ||
+        idxB < 0 ||
+        idxB >= d.boxes.length ||
+        idxA === idxB
+      ) {
+        return d;
+      }
+      const newBoxes = [...d.boxes];
+      [newBoxes[idxA], newBoxes[idxB]] = [newBoxes[idxB], newBoxes[idxA]];
+      return { ...d, boxes: newBoxes };
+    });
+  }
+
   // Reordenar una caja del draft de fromIdx → toIdx (drag-and-drop)
   function reorderDraftBox(fromIdx, toIdx) {
     setDraft((d) => {
@@ -595,6 +615,7 @@ export default function Home() {
             trailerLength={TRAILER_LENGTH}
             capacityLimit={CAPACITY_LIMIT}
             onReorderDraft={reorderDraftBox}
+            onSwapDraft={swapDraftBoxes}
           />
           {!loading && orders.length === 0 && !draft && (
             <p className="empty empty-trailer">

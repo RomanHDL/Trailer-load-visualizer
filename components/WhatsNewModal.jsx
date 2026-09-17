@@ -3,8 +3,10 @@
 // todas las versiones, el usuario puede abrir el historial completo desde
 // acá o desde el botón "Actualizaciones" del topbar (que usa ChangelogModal).
 import { CHANGELOG } from '../data/changelog';
+import { useBodyScrollLock } from '../lib/useBodyScrollLock';
 
 export default function WhatsNewModal({ open, onClose, onViewFullHistory }) {
+  useBodyScrollLock(open);
   if (!open) return null;
 
   const latest = CHANGELOG[0];

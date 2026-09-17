@@ -3,6 +3,17 @@
 // para saber si ya se le mostró al usuario el aviso de la última versión).
 export const CHANGELOG = [
   {
+    version: '1.6.0',
+    date: '2026-09-17',
+    title: 'Buscador de órdenes en el Historial',
+    changes: [
+      'Nuevo buscador dentro del Historial: escribí el número de orden (completo o parcial) y encontrala aunque sea de hace semanas o meses, sin tener que saber en qué día fue.',
+      'La búsqueda es global (no depende del día seleccionado) y respeta los filtros Todas/Activas/Archivadas.',
+      'Los resultados muestran fecha y hora completas, y conservan las mismas acciones de siempre: Ver simulación, PDF y el menú "···".',
+      'Al limpiar la búsqueda, el historial regresa exactamente al día y filtro que estabas viendo.',
+    ],
+  },
+  {
     version: '1.5.0',
     date: '2026-09-17',
     title: 'PDF con colores por medida y "Ver simulación" en el historial',

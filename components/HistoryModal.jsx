@@ -8,6 +8,7 @@ import {
   formatDayShort,
   formatDayLong,
   formatDayLongNoYear,
+  dayKeyParts,
 } from '../lib/dateFormat';
 import { displayOrderNumber, isValidOrderNumber } from '../lib/orderNumber';
 import { useBodyScrollLock } from '../lib/useBodyScrollLock';
@@ -33,6 +34,7 @@ export default function HistoryModal({
   const [selectedDay, setSelectedDay] = useState(null); // dayKey 'YYYY-MM-DD'
   const [windowEnd, setWindowEnd] = useState(null); // día más reciente mostrado en la barra
   const [sortOrder, setSortOrder] = useState('desc'); // 'desc' | 'asc'
+  const [searchQuery, setSearchQuery] = useState('');
   const [openMenuId, setOpenMenuId] = useState(null);
   const [menuAnchorRect, setMenuAnchorRect] = useState(null);
   const [menuStyle, setMenuStyle] = useState(null);
@@ -48,6 +50,7 @@ export default function HistoryModal({
     setPendingDeleteId(null); // reset al abrir
     setOpenMenuId(null);
     setSortOrder('desc');
+    setSearchQuery('');
     // El historial SIEMPRE abre en HOY, sin importar dónde se haya quedado
     // la última vez.
     const t = getLocalDayKey(new Date(), timeZone);
@@ -99,6 +102,50 @@ export default function HistoryModal({
     });
     return arr;
   }, [dayOrders, sortOrder]);
+
+  // ===== Búsqueda global =====
+  // Trabaja sobre `filtered` (ya con Todas/Activas/Archivadas aplicado) y NO
+  // sobre el día seleccionado — así encuentra una orden sin importar cuándo
+  // se creó. El dataset completo del historial ya está en memoria (se cargó
+  // entero al abrir el modal), así que alcanza con un filtro local.
+  const trimmedQuery = searchQuery.trim();
+  const searchActive = trimmedQuery.length > 0;
+
+  const searchResults = useMemo(() => {
+    if (!searchActive) return [];
+    const q = trimmedQuery.toLowerCase();
+    return filtered.filter((o) =>
+      String(o.orderNumber ?? '').toLowerCase().includes(q)
+    );
+  }, [filtered, searchActive, trimmedQuery]);
+
+  const sortedSearchResults = useMemo(() => {
+    const arr = [...searchResults];
+    arr.sort((a, b) => {
+      const ta = new Date(a.createdAt).getTime();
+      const tb = new Date(b.createdAt).getTime();
+      return sortOrder === 'asc' ? ta - tb : tb - ta;
+    });
+    return arr;
+  }, [searchResults, sortOrder]);
+
+  // Lista que realmente se muestra: resultados de búsqueda global si hay
+  // texto, o el día seleccionado como siempre.
+  const visibleOrders = searchActive ? sortedSearchResults : sortedDayOrders;
+
+  function clearSearch() {
+    setSearchQuery('');
+  }
+
+  // "17 sep 2026 · 8:42 a.m." — en búsqueda global mostramos fecha completa
+  // porque los resultados pueden ser de días distintos (en la vista por día
+  // alcanza con la hora, porque la fecha ya está arriba).
+  function fullDateTimeLabel(order) {
+    const dayKey = getLocalDayKey(order.createdAt, timeZone);
+    const { year } = dayKeyParts(dayKey);
+    const hora = formatLocalDate(order.createdAt, { timeStyle: 'short' });
+    return `${formatDayShort(dayKey)} ${year} · ${hora}`;
+  }
 
   const daySummary = useMemo(
     () =>
@@ -298,6 +345,40 @@ export default function HistoryModal({
           </button>
         </div>
 
+        <div className="modal-search-row">
+          <div className="modal-search-box">
+            <span className="modal-search-icon" aria-hidden="true">
+              🔎
+            </span>
+            <input
+              type="text"
+              className="modal-search-input"
+              placeholder="Buscar orden... Ej. 1800, PRUEBA, 36364"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                } else if (e.key === 'Escape' && searchQuery) {
+                  e.stopPropagation();
+                  clearSearch();
+                }
+              }}
+              aria-label="Buscar orden"
+            />
+            {searchActive && (
+              <button
+                type="button"
+                className="modal-search-clear"
+                onClick={clearSearch}
+                aria-label="Limpiar búsqueda"
+              >
+                ×
+              </button>
+            )}
+          </div>
+        </div>
+
         <div className="day-nav-row">
           <button
             type="button"
@@ -409,7 +490,13 @@ export default function HistoryModal({
         </div>
 
         <div className="orders-list-head">
-          <h3>{selectedDay ? dayHeaderLabel(selectedDay, dayOrders.length) : ''}</h3>
+          <h3>
+            {searchActive
+              ? `Resultados de búsqueda (${sortedSearchResults.length})`
+              : selectedDay
+              ? dayHeaderLabel(selectedDay, dayOrders.length)
+              : ''}
+          </h3>
           <select
             className="sort-select"
             value={sortOrder}
@@ -424,27 +511,32 @@ export default function HistoryModal({
         <div className="modal-body" onClick={() => setOpenMenuId(null)}>
           {loading ? (
             <p className="empty">Cargando…</p>
-          ) : sortedDayOrders.length === 0 ? (
+          ) : visibleOrders.length === 0 ? (
             <div className="empty-day-card">
               <span className="empty-day-icon" aria-hidden="true">
-                📅
+                {searchActive ? '🔎' : '📅'}
               </span>
-              <p className="empty-day-title">No hay órdenes registradas</p>
+              <p className="empty-day-title">
+                {searchActive ? 'No se encontraron órdenes' : 'No hay órdenes registradas'}
+              </p>
               <p className="empty-day-sub">
-                No se encontraron órdenes para el{' '}
-                {selectedDay ? formatDayLong(selectedDay) : ''}.
+                {searchActive
+                  ? `No hay resultados para "${trimmedQuery}".`
+                  : `No se encontraron órdenes para el ${
+                      selectedDay ? formatDayLong(selectedDay) : ''
+                    }.`}
               </p>
             </div>
           ) : (
             <ul className="order-rows">
-              {sortedDayOrders.map((o) => {
+              {visibleOrders.map((o) => {
                 const counts = {};
                 o.boxes.forEach((b) => {
                   counts[b.inches] = (counts[b.inches] || 0) + 1;
                 });
-                const hora = formatLocalDate(o.createdAt, {
-                  timeStyle: 'short',
-                });
+                const hora = searchActive
+                  ? fullDateTimeLabel(o)
+                  : formatLocalDate(o.createdAt, { timeStyle: 'short' });
                 const isPending = pendingDeleteId === o._id;
                 const isMenuOpen = openMenuId === o._id;
 

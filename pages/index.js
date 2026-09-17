@@ -6,6 +6,7 @@ import HistoryModal from '../components/HistoryModal';
 import LimitModal from '../components/LimitModal';
 import ChangelogModal from '../components/ChangelogModal';
 import WhatsNewModal from '../components/WhatsNewModal';
+import SimulationModal from '../components/SimulationModal';
 import { SIZE_TABLE } from '../data/sizeTable';
 import { packBoxes } from '../lib/packing';
 import { CURRENT_VERSION } from '../data/changelog';
@@ -38,6 +39,7 @@ export default function Home() {
   const [toast, setToast] = useState(null);
   const [limitInfo, setLimitInfo] = useState(null);
   const [theme, setTheme] = useState('dark');
+  const [simulationOrder, setSimulationOrder] = useState(null);
   const draftHydrated = useRef(false);
 
   // Aplica el tema lo antes posible (primer render en cliente) para evitar
@@ -279,6 +281,49 @@ export default function Home() {
     setDraft(null);
   }
 
+  // Snapshot del acomodo (carril + posición ya resueltos) tal como lo
+  // muestra el simulador en este instante: órdenes activas actuales + el
+  // draft, en su orden final (después de cualquier drag & drop / swap).
+  // Se guarda junto con la orden para poder reconstruir EXACTAMENTE esta
+  // vista más adelante, sin volver a calcular nada con el packing de ese
+  // momento (que podría cambiar si el trailer ya tiene otras órdenes).
+  function buildSimulationSnapshot() {
+    const sequence = [];
+    orders.forEach((o) => {
+      o.boxes.forEach((b) => {
+        sequence.push({
+          inches: b.inches,
+          meters: b.meters,
+          orderNumber: o.orderNumber,
+        });
+      });
+    });
+    draft.boxes.forEach((b) => {
+      sequence.push({
+        inches: b.inches,
+        meters: b.meters,
+        orderNumber: draft.orderNumber,
+      });
+    });
+    const { placed, totalUsed, lane1, lane2 } = packBoxes(sequence);
+    return {
+      trailerLength: TRAILER_LENGTH,
+      capacityLimit: CAPACITY_LIMIT,
+      totalUsed,
+      lane1,
+      lane2,
+      placed: placed.map(({ inches, meters, orderNumber, lane, start, end, full }) => ({
+        inches,
+        meters,
+        orderNumber,
+        lane,
+        start,
+        end,
+        full,
+      })),
+    };
+  }
+
   async function saveDraft() {
     if (!draft || draft.boxes.length === 0) return;
     setSaving(true);
@@ -287,12 +332,14 @@ export default function Home() {
     let nextOrders = null;
 
     try {
+      const simulationSnapshot = buildSimulationSnapshot();
       const res = await fetch('/api/orders', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           orderNumber: draft.orderNumber,
           boxes: draft.boxes.map((b) => ({ inches: b.inches })),
+          simulationSnapshot,
         }),
       });
 
@@ -630,6 +677,13 @@ export default function Home() {
         onClose={() => setShowHistory(false)}
         onReprint={reprintPdf}
         onDelete={deleteOrder}
+        onViewSimulation={setSimulationOrder}
+      />
+
+      <SimulationModal
+        order={simulationOrder}
+        onClose={() => setSimulationOrder(null)}
+        onReprint={reprintPdf}
       />
 
       <LimitModal data={limitInfo} onClose={() => setLimitInfo(null)} />

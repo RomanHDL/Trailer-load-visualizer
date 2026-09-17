@@ -3,6 +3,17 @@
 // para saber si ya se le mostró al usuario el aviso de la última versión).
 export const CHANGELOG = [
   {
+    version: '1.5.0',
+    date: '2026-09-17',
+    title: 'PDF con colores por medida y "Ver simulación" en el historial',
+    changes: [
+      'El PDF ahora pinta cada tarima con el mismo color de su medida que ya usa el simulador (antes se coloreaba por orden). La tabla de desglose sigue igual, sin colores.',
+      'Nueva acción "Ver simulación" en el historial: abre un modal de solo lectura con el acomodo exacto del trailer tal como quedó guardado, incluyendo el orden final después de arrastrar tarimas.',
+      'A partir de ahora cada orden guardada conserva un snapshot de su acomodo (carril y posición de cada tarima), no solo las cantidades. El PDF y "Ver simulación" usan ese snapshot en vez de recalcular.',
+      'Las órdenes guardadas antes de este cambio siguen funcionando igual (PDF, historial, eliminar); al no tener snapshot, "Ver simulación" avisa que esa vista no está disponible para ellas.',
+    ],
+  },
+  {
     version: '1.4.0',
     date: '2026-09-17',
     title: 'Historial más espacioso, colores por medida y drag & drop preciso',

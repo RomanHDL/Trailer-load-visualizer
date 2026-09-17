@@ -3,6 +3,55 @@ import Order from '../../../models/Order';
 import { SIZE_TABLE } from '../../../data/sizeTable';
 import { isValidOrderNumber, normalizeOrderNumber } from '../../../lib/orderNumber';
 
+// Valida el snapshot del acomodo (carril/posición ya resueltos) que manda el
+// cliente al guardar. Nunca lanza: si algo no cuadra, se ignora (la orden se
+// guarda igual, solo sin snapshot) — un snapshot roto no debe bloquear el
+// guardado de la orden.
+function sanitizeSnapshot(raw) {
+  try {
+    if (!raw || !Array.isArray(raw.placed) || raw.placed.length === 0) {
+      return null;
+    }
+    const placed = raw.placed.map((b) => {
+      const inchesNum = Number(b.inches);
+      const meters = SIZE_TABLE[inchesNum];
+      if (meters == null) throw new Error(`medida inválida en snapshot: ${b.inches}`);
+      const lane = Number(b.lane);
+      if (![0, 1, 2].includes(lane)) throw new Error(`carril inválido en snapshot: ${b.lane}`);
+      const start = Number(b.start);
+      const end = Number(b.end);
+      if (!Number.isFinite(start) || !Number.isFinite(end)) {
+        throw new Error('posición inválida en snapshot');
+      }
+      return {
+        inches: inchesNum,
+        meters,
+        orderNumber: String(b.orderNumber ?? ''),
+        lane,
+        full: !!b.full,
+        start,
+        end,
+      };
+    });
+
+    const totalUsed = Number(raw.totalUsed);
+    const lane1 = Number(raw.lane1);
+    const lane2 = Number(raw.lane2);
+    const trailerLength = Number(raw.trailerLength);
+    const capacityLimit = Number(raw.capacityLimit);
+    if (
+      ![totalUsed, lane1, lane2, trailerLength, capacityLimit].every(Number.isFinite)
+    ) {
+      throw new Error('métricas inválidas en snapshot');
+    }
+
+    return { placed, totalUsed, lane1, lane2, trailerLength, capacityLimit };
+  } catch (e) {
+    console.warn('[POST /api/orders] snapshot inválido, se ignora:', e.message);
+    return null;
+  }
+}
+
 export default async function handler(req, res) {
   await dbConnect();
 
@@ -20,7 +69,7 @@ export default async function handler(req, res) {
 
   if (req.method === 'POST') {
     try {
-      const { orderNumber, boxes } = req.body || {};
+      const { orderNumber, boxes, simulationSnapshot } = req.body || {};
       const trimmedOrderNumber = normalizeOrderNumber(orderNumber);
 
       if (!trimmedOrderNumber) {
@@ -62,12 +111,14 @@ export default async function handler(req, res) {
       });
 
       const totalMeters = validatedBoxes.reduce((s, b) => s + b.meters, 0);
+      const validatedSnapshot = sanitizeSnapshot(simulationSnapshot);
 
       const created = await Order.create({
         orderNumber: trimmedOrderNumber,
         boxes: validatedBoxes,
         totalMeters,
         status: 'saved',
+        simulationSnapshot: validatedSnapshot,
       });
 
       // Re-leer para confirmar persistencia y devolver el doc completo

@@ -16,35 +16,16 @@ export default function TrailerView({
   capacityLimit,
   onReorderDraft,
   onSwapDraft,
+  // Acomodo ya congelado (carril/posición resueltos), para reconstruir una
+  // simulación guardada tal cual quedó — sin recalcular packBoxes. Cuando
+  // viene, `orders`/`draft` se ignoran para el dibujo y el drag & drop queda
+  // deshabilitado (no hay tarimas marcadas isDraft).
+  snapshot,
 }) {
   const bodyRef = useRef(null);
   const [drag, setDrag] = useState(null);
   // drag = { draftIdx, pointerId, startX, startY, currentX, currentY, moved, preview }
   // preview = { mode: 'swap', targetIdx } | { mode: 'insert', targetIdx, atMeters, lane }
-
-  // Construir secuencia. Marcar draftIdx para los del draft.
-  const sequence = [];
-  orders.forEach((o) => {
-    o.boxes.forEach((b) => {
-      sequence.push({
-        ...b,
-        orderNumber: o.orderNumber,
-        color: getSizeColor(b.inches).bg,
-        isDraft: false,
-      });
-    });
-  });
-  if (draft && draft.boxes.length) {
-    draft.boxes.forEach((b, i) => {
-      sequence.push({
-        ...b,
-        orderNumber: draft.orderNumber,
-        color: getSizeColor(b.inches).bg,
-        isDraft: true,
-        draftIdx: i,
-      });
-    });
-  }
 
   // El tope real de tolerancia puede ser mayor al que se muestra en pantalla
   // (ver CAPACITY_LIMIT en pages/index.js). `trailerLength` sigue marcando
@@ -52,7 +33,43 @@ export default function TrailerView({
   // el que realmente decide cuándo algo se pinta como excedido.
   const effectiveLimit = capacityLimit ?? trailerLength;
 
-  const { placed, totalUsed, lane1, lane2 } = packBoxes(sequence);
+  let placed, totalUsed, lane1, lane2;
+  if (snapshot) {
+    placed = snapshot.placed.map((b, i) => ({
+      ...b,
+      idx: i,
+      color: getSizeColor(b.inches).bg,
+      isDraft: false,
+    }));
+    totalUsed = snapshot.totalUsed;
+    lane1 = snapshot.lane1;
+    lane2 = snapshot.lane2;
+  } else {
+    // Construir secuencia. Marcar draftIdx para los del draft.
+    const sequence = [];
+    orders.forEach((o) => {
+      o.boxes.forEach((b) => {
+        sequence.push({
+          ...b,
+          orderNumber: o.orderNumber,
+          color: getSizeColor(b.inches).bg,
+          isDraft: false,
+        });
+      });
+    });
+    if (draft && draft.boxes.length) {
+      draft.boxes.forEach((b, i) => {
+        sequence.push({
+          ...b,
+          orderNumber: draft.orderNumber,
+          color: getSizeColor(b.inches).bg,
+          isDraft: true,
+          draftIdx: i,
+        });
+      });
+    }
+    ({ placed, totalUsed, lane1, lane2 } = packBoxes(sequence));
+  }
   const overflow = totalUsed > effectiveLimit;
   placed.forEach((b) => {
     b.exceedsLimit = b.end > effectiveLimit;

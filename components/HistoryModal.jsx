@@ -15,7 +15,13 @@ import { getSizeColor } from '../data/sizeColors';
 
 const DAY_WINDOW_SIZE = 4;
 
-export default function HistoryModal({ open, onClose, onReprint, onDelete }) {
+export default function HistoryModal({
+  open,
+  onClose,
+  onReprint,
+  onDelete,
+  onViewSimulation,
+}) {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(false);
   const [filter, setFilter] = useState('all'); // 'all' | 'active' | 'archived'
@@ -513,6 +519,12 @@ export default function HistoryModal({ open, onClose, onReprint, onDelete }) {
                         </>
                       ) : (
                         <>
+                          <button
+                            className="btn-ghost btn-sm"
+                            onClick={() => onViewSimulation(o)}
+                          >
+                            Ver simulación
+                          </button>
                           <button
                             className="btn-primary btn-sm"
                             onClick={() => onReprint(o)}

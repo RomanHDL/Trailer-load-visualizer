@@ -2002,6 +2002,34 @@ button:disabled { opacity: 0.45; cursor: not-allowed; }
 .empty-day-title { margin: 0; font-size: 15px; font-weight: 800; color: var(--text-strong); }
 .empty-day-sub { margin: 0; font-size: 13px; color: var(--text-dim); max-width: 380px; }
 
+/* ===== Modal "Ver simulación" (solo lectura) ===== */
+.modal-simulation { max-width: 1100px; }
+.sim-meta-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+.sim-unavailable {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 48px 20px;
+  gap: 6px;
+  color: var(--text-dim);
+}
+.sim-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 14px 20px;
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
 @media (min-width: 720px) {
   .modal-overlay { align-items: center; }
   .modal { border-radius: var(--radius); max-height: 80vh; }

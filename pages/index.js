@@ -4,6 +4,7 @@ import OrderForm from '../components/OrderForm';
 import TrailerView from '../components/TrailerView';
 import HistoryModal from '../components/HistoryModal';
 import LimitModal from '../components/LimitModal';
+import OverCapacityModal from '../components/OverCapacityModal';
 import ChangelogModal from '../components/ChangelogModal';
 import WhatsNewModal from '../components/WhatsNewModal';
 import SimulationModal from '../components/SimulationModal';
@@ -21,10 +22,10 @@ const TRAILER_LENGTH = Number(
 );
 
 // Tolerancia real interna: el trailer en la práctica admite bastante más de
-// lo que se muestra como "límite" en pantalla. Todo lo que decide si algo
-// cabe o no (bloqueo al agregar, "% de capacidad", colores de overflow)
-// usa este valor; el número que se imprime en la UI/PDF sigue siendo
-// TRAILER_LENGTH, sin cambios.
+// lo que se muestra como "límite" en pantalla. Es el único tope que
+// realmente BLOQUEA agregar tarimas (ver maxFitCount/LimitModal) — el
+// número que se imprime en la UI/PDF y el que se usa para "% de capacidad"
+// real siguen siendo TRAILER_LENGTH, sin cambios.
 const CAPACITY_LIMIT = TRAILER_LENGTH * 2;
 
 const DRAFT_STORAGE_KEY = 'trailer:draft:v1';
@@ -43,6 +44,11 @@ export default function Home() {
   const [showWhatsNew, setShowWhatsNew] = useState(false);
   const [toast, setToast] = useState(null);
   const [limitInfo, setLimitInfo] = useState(null);
+  // Aviso (no bloqueante) de que agregar esto haría que la carga pase de
+  // <=100% a >100% de TRAILER_LENGTH: { inches, meters, qty, newBoxes,
+  // currentTotal, resultingTotal }. Se resuelve con confirmOverCapacityAdd
+  // (agrega) o cancelOverCapacityAdd (descarta), ver más abajo.
+  const [overCapacityWarning, setOverCapacityWarning] = useState(null);
   const [theme, setTheme] = useState('dark');
   // Modo de carga del contenedor: aplica a la orden/carga completa actual,
   // seleccionable arriba del simulador. No se persiste — cada sesión/refresh
@@ -173,6 +179,7 @@ export default function Home() {
 
   function startDraft(orderNumber) {
     setDraft({ orderNumber, boxes: [] });
+    setOverCapacityWarning(null);
   }
 
   // Simula de a una tarima cuántas de esta medida caben sobre `baseBoxes`
@@ -232,7 +239,42 @@ export default function Home() {
     }
 
     const newBoxes = Array.from({ length: n }, () => ({ inches, meters }));
+
+    // Aviso no bloqueante al cruzar de <=100% a >100% de TRAILER_LENGTH (el
+    // límite oficial de 15.9m) — NO es el tope duro de arriba (ese usa
+    // CAPACITY_LIMIT y ya se resolvió). Si la carga YA estaba por encima
+    // (p.ej. el usuario ya aceptó seguir cargando), no se vuelve a
+    // preguntar: eso surge solo de comparar currentTotal/resultingTotal,
+    // sin necesidad de guardar un flag de "aceptado" aparte.
+    const { totalUsed: currentTotal } = packBoxes(existingBoxes, loadMode);
+    const { totalUsed: resultingTotal } = packBoxes(
+      [...existingBoxes, ...newBoxes],
+      loadMode
+    );
+    if (currentTotal <= TRAILER_LENGTH && resultingTotal > TRAILER_LENGTH) {
+      setOverCapacityWarning({
+        inches,
+        meters,
+        qty: n,
+        newBoxes,
+        currentTotal,
+        resultingTotal,
+      });
+      return;
+    }
+
     setDraft((d) => ({ ...d, boxes: [...d.boxes, ...newBoxes] }));
+  }
+
+  function confirmOverCapacityAdd() {
+    const pending = overCapacityWarning;
+    if (!pending) return;
+    setDraft((d) => ({ ...d, boxes: [...d.boxes, ...pending.newBoxes] }));
+    setOverCapacityWarning(null);
+  }
+
+  function cancelOverCapacityAdd() {
+    setOverCapacityWarning(null);
   }
 
   // Intercambia dos cajas del draft directamente (drop exacto sobre otra
@@ -298,6 +340,7 @@ export default function Home() {
     )
       return;
     setDraft(null);
+    setOverCapacityWarning(null);
   }
 
   // Snapshot del acomodo (carril + posición ya resueltos) tal como lo
@@ -387,6 +430,7 @@ export default function Home() {
       nextOrders = [...orders, savedOrder];
       setOrders(nextOrders);
       setDraft(null);
+      setOverCapacityWarning(null);
       setJustSaved({
         orderNumber: savedOrder.orderNumber,
         palletCount: savedOrder.boxes.length,
@@ -497,6 +541,7 @@ export default function Home() {
       }
       setOrders([]);
       setDraft(null);
+      setOverCapacityWarning(null);
       try {
         localStorage.removeItem(DRAFT_STORAGE_KEY);
       } catch {}
@@ -514,18 +559,15 @@ export default function Home() {
   if (draft) draft.boxes.forEach((b) => allBoxes.push(b));
   const { totalUsed: totalAll } = packBoxes(allBoxes, loadMode);
 
-  // overflow real: solo se activa al pasar la tolerancia interna
-  // (CAPACITY_LIMIT). Mientras tanto, "Disponible" y "Capacidad" se
-  // muestran como si el tope siguiera siendo TRAILER_LENGTH (se topan en
-  // 0 / 100%) para que no se note la tolerancia extra.
-  const overflow = totalAll > CAPACITY_LIMIT;
-  const remaining = overflow
-    ? CAPACITY_LIMIT - totalAll
-    : Math.max(0, TRAILER_LENGTH - totalAll);
-  const capacityPct = overflow
-    ? (totalAll / CAPACITY_LIMIT) * 100
-    : Math.min(100, (totalAll / TRAILER_LENGTH) * 100);
-  const usedPct = Math.min(100, capacityPct);
+  // Porcentaje REAL (nunca topado a 100) vs porcentaje VISUAL (topado a 100
+  // solo para que la barra no se salga de su contenedor). El texto de
+  // "Capacidad" SIEMPRE usa realPercentage — puede mostrar 105%, 111%, etc.
+  // CAPACITY_LIMIT (tolerancia interna) sigue siendo el único tope que
+  // realmente bloquea agregar tarimas (ver maxFitCount) — no cambia.
+  const realPercentage = (totalAll / TRAILER_LENGTH) * 100;
+  const visualPercentage = Math.min(realPercentage, 100);
+  const overCapacity = realPercentage > 100;
+  const remaining = Math.max(TRAILER_LENGTH - totalAll, 0);
 
   return (
     <>
@@ -624,33 +666,38 @@ export default function Home() {
             </span>
           </div>
           <div className="hero-card">
-            <span className="hero-lbl">
-              {overflow ? 'Sobresale' : 'Disponible'}
-            </span>
+            <span className="hero-lbl">Disponible</span>
             <span
               className={`hero-num ${
-                overflow ? 'hero-num-red' : 'hero-num-green'
+                overCapacity ? 'hero-num-red' : 'hero-num-green'
               }`}
             >
-              {Math.abs(remaining).toFixed(2)}
+              {remaining.toFixed(2)}
               <small>m</small>
             </span>
           </div>
           <div className="hero-card hero-card-wide">
             <div className="progress-row">
               <span className="hero-lbl">Capacidad</span>
-              <span
-                className={`hero-pct ${overflow ? 'pct-red' : 'pct-green'}`}
-              >
-                {capacityPct.toFixed(0)}%
+              <span className="hero-pct-group">
+                {overCapacity && (
+                  <span className="hero-pct-badge">Excedido</span>
+                )}
+                <span
+                  className={`hero-pct ${
+                    overCapacity ? 'pct-red' : 'pct-green'
+                  }`}
+                >
+                  {realPercentage.toFixed(0)}%
+                </span>
               </span>
             </div>
             <div className="progress-bar">
               <div
                 className={`progress-fill ${
-                  overflow ? 'pf-red' : 'pf-green'
+                  overCapacity ? 'pf-red' : 'pf-green'
                 }`}
-                style={{ width: `${usedPct}%` }}
+                style={{ width: `${visualPercentage}%` }}
               />
             </div>
           </div>
@@ -741,6 +788,13 @@ export default function Home() {
       />
 
       <LimitModal data={limitInfo} onClose={() => setLimitInfo(null)} />
+
+      <OverCapacityModal
+        data={overCapacityWarning}
+        trailerLength={TRAILER_LENGTH}
+        onCancel={cancelOverCapacityAdd}
+        onConfirm={confirmOverCapacityAdd}
+      />
 
       <SavedConfirmationModal
         data={justSaved}

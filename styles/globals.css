@@ -219,6 +219,18 @@ input[type=number] { -moz-appearance: textfield; }
 .hero-pct { font-weight: 700; font-size: 14px; }
 .pct-green { color: var(--status-green); }
 .pct-red { color: var(--status-red); }
+.hero-pct-group { display: flex; align-items: center; gap: 6px; }
+.hero-pct-badge {
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--status-red);
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  border-radius: 999px;
+  padding: 2px 7px;
+}
 
 .progress-row { display: flex; justify-content: space-between; align-items: center; }
 .progress-bar {
@@ -1431,6 +1443,22 @@ button:disabled { opacity: 0.45; cursor: not-allowed; }
   align-items: center;
   justify-content: center;
 }
+.alert-modal-icon-warning {
+  background: rgba(245, 158, 11, 0.15);
+  border-color: var(--warning);
+  color: var(--warning);
+}
+
+/* Fila de 2 botones (Cancelar / Aceptar y continuar), mismo patrón que
+   .saved-confirm-actions/.saved-confirm-btn pero con nombre genérico para
+   reutilizarse en cualquier alert-modal con 2 acciones. */
+.alert-modal-actions {
+  display: flex;
+  gap: 10px;
+  width: 100%;
+  margin-top: 4px;
+}
+.alert-modal-btn { flex: 1; }
 
 .alert-modal-title {
   margin: 0 0 8px;
@@ -2331,6 +2359,7 @@ button:disabled { opacity: 0.45; cursor: not-allowed; }
   .btn-history { padding: 8px 12px; font-size: 12px; }
   .btn-history span { display: none; }  /* Solo icono en mobile chico */
   .saved-confirm-actions { flex-direction: column; max-width: none; }
+  .alert-modal-actions { flex-direction: column; }
   .hero-stats { gap: 8px; margin-bottom: 12px; }
   .hero-card { padding: 12px 14px; }
 

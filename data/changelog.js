@@ -3,6 +3,19 @@
 // para saber si ya se le mostró al usuario el aviso de la última versión).
 export const CHANGELOG = [
   {
+    version: '1.10.0',
+    date: '2026-09-18',
+    title: 'Porcentaje de capacidad real + aviso al superar el 100%',
+    changes: [
+      'La tarjeta "Capacidad" ahora muestra el porcentaje real de uso (puede pasar de 100%: 105%, 111%, etc.) en vez de quedarse topado en 100% cuando la carga ya superó el límite de 15.9 m.',
+      'Cuando la capacidad queda por encima de 100% aparece la etiqueta "Excedido" junto al porcentaje, con el número y la barra en color de advertencia — la barra sigue limitada visualmente a 100% de ancho para no salirse de la tarjeta.',
+      '"Disponible" nunca muestra negativos: se queda en 0.00 m cuando ya no hay espacio según el límite oficial.',
+      'Nuevo aviso al agregar un pallet que haría pasar la carga de 100% o menos a más de 100%: muestra capacidad máxima, carga actual, nueva carga y capacidad resultante, con botones "Cancelar" (no agrega nada) y "Aceptar y continuar" (agrega y permite seguir cubicando por encima del límite).',
+      'Ese aviso no se repite con cada pallet siguiente mientras la carga sigue por encima de 100% — solo vuelve a aparecer si la carga baja de 100% y luego se cruza otra vez, o al iniciar una orden nueva.',
+      'Nada de esto cambia el bloqueo real de espacio (cuando ya no cabe nada más), el límite de 15.9 m dibujado en el camión, el algoritmo de acomodo, ni el guardado/PDF de órdenes por encima del 100%.',
+    ],
+  },
+  {
     version: '1.9.0',
     date: '2026-09-18',
     title: 'Orientación automática de tarimas por medida + modo Intercalado',

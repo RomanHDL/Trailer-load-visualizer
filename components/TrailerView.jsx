@@ -23,6 +23,17 @@ function PalletTooltip({ box, placed, style, tooltipRef }) {
   const laneItems = placed.filter((p) => p.full || p.lane === box.lane);
   const position = laneItems.findIndex((p) => p.idx === box.idx) + 1;
   const accent = getSizeColor(box.inches).bg;
+  // `orientation` ya viene calculada desde packBoxes (o congelada en el
+  // snapshot histórico). Fallback solo para snapshots guardados antes de
+  // que existiera este campo.
+  const orientationLabel =
+    box.orientation === 'vertical'
+      ? 'Vertical'
+      : box.orientation === 'horizontal'
+      ? 'Horizontal'
+      : Number(box.inches) < 65
+      ? 'Horizontal'
+      : 'Vertical';
 
   return (
     <div
@@ -37,6 +48,10 @@ function PalletTooltip({ box, placed, style, tooltipRef }) {
         <strong>{laneLabel}</strong>
       </div>
       <div className="pallet-tooltip-row">
+        <span>Orientación</span>
+        <strong>{orientationLabel}</strong>
+      </div>
+      <div className="pallet-tooltip-row">
         <span>Posición</span>
         <strong>{position}</strong>
       </div>
@@ -48,6 +63,7 @@ function PalletTooltip({ box, placed, style, tooltipRef }) {
         <span>Orden</span>
         <strong>{displayOrderNumber(box.orderNumber)}</strong>
       </div>
+      <div className="pallet-tooltip-hint">Orientación automática</div>
     </div>
   );
 }
@@ -64,6 +80,10 @@ export default function TrailerView({
   // viene, `orders`/`draft` se ignoran para el dibujo y el drag & drop queda
   // deshabilitado (no hay tarimas marcadas isDraft).
   snapshot,
+  // Modo de carga activo (mixto/todas verticales/todas horizontales). Solo
+  // afecta el cálculo en vivo — un snapshot histórico ya trae `lane`/`full`
+  // congelados con el modo que estaba activo al guardar.
+  loadMode,
 }) {
   const bodyRef = useRef(null);
   const [drag, setDrag] = useState(null);
@@ -121,7 +141,7 @@ export default function TrailerView({
         });
       });
     }
-    ({ placed, totalUsed, lane1, lane2 } = packBoxes(sequence));
+    ({ placed, totalUsed, lane1, lane2 } = packBoxes(sequence, loadMode));
   }
   const overflow = totalUsed > effectiveLimit;
   placed.forEach((b) => {
@@ -478,7 +498,11 @@ export default function TrailerView({
               {insertPreview && draggedBox && (
                 <div
                   className={`drop-placeholder ${
-                    insertPreview.lane === 1 ? 'box-lane1' : 'box-lane2'
+                    draggedBox.full
+                      ? 'box-full'
+                      : insertPreview.lane === 1
+                      ? 'box-lane1'
+                      : 'box-lane2'
                   }`}
                   style={{
                     left: `${(insertPreview.atMeters / visualMax) * 100}%`,

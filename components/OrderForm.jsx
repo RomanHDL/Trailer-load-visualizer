@@ -25,6 +25,9 @@ export default function OrderForm({
   // `autoFocus` del input no alcanza a dispararse otra vez — este efecto
   // fuerza el foco explícitamente en ese momento.
   focusSignal,
+  // Modo de carga activo, para que el subtotal de metros de este draft
+  // refleje el mismo cálculo que el simulador.
+  loadMode,
 }) {
   const [orderNumber, setOrderNumber] = useState('');
   const [orderError, setOrderError] = useState(null);
@@ -90,7 +93,7 @@ export default function OrderForm({
   // Estado B: orden activa
   // Metros que esta orden ocupa realmente en el trailer (2 tarimas en
   // paralelo por carril) — no la suma lineal de todas las tarimas.
-  const { totalUsed: totalMeters } = packBoxes(draft.boxes);
+  const { totalUsed: totalMeters } = packBoxes(draft.boxes, loadMode);
 
   // Agrupa cajas por medida para mostrar chips compactos
   const groups = {};

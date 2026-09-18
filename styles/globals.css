@@ -1109,6 +1109,14 @@ button:disabled { opacity: 0.45; cursor: not-allowed; }
   font-weight: 700;
   text-align: right;
 }
+.pallet-tooltip-hint {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid var(--border-2);
+  font-size: 10.5px;
+  color: var(--text-dim);
+  font-style: italic;
+}
 .box-label {
   display: flex;
   flex-direction: column;
@@ -1897,6 +1905,12 @@ button:disabled { opacity: 0.45; cursor: not-allowed; }
   color: white;
 }
 .view-mode-btn.active:hover { background: var(--primary-2); border-color: var(--primary-2); }
+
+/* ===== Selector de modo de carga (arriba del simulador) =====
+   Reutiliza .view-mode-row/.view-mode-btn, pero vive dentro de
+   .panel-trailer (que ya trae su propio padding lateral) en vez de un
+   modal, así que se le quita el padding horizontal propio. */
+.load-mode-row { padding: 10px 0 4px; flex-wrap: wrap; }
 
 /* ===== Historial: navegador de periodo (Día y Semana comparten esto) =====
    Columnas fijas para las flechas (grid, no flex) — su posición nunca

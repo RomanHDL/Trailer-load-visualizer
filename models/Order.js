@@ -27,6 +27,10 @@ const SnapshotBoxSchema = new mongoose.Schema(
     full: { type: Boolean, default: false },
     start: { type: Number, required: true },
     end: { type: Number, required: true },
+    // Etiqueta informativa (no afecta el carril) — ver getPalletOrientation
+    // en data/sizeTable.js. Opcional: snapshots guardados antes de esta
+    // regla no la tienen.
+    orientation: { type: String, enum: ['horizontal', 'vertical'] },
   },
   { _id: false }
 );

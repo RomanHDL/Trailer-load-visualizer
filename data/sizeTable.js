@@ -25,25 +25,48 @@ export const SIZE_TABLE = Object.fromEntries(
   ])
 );
 
-// Todas las tarimas pairean lado-a-lado en el trailer (2 carriles). El trailer
-// real permite 1 tarima a la izquierda + 1 a la derecha en cada posición.
-// La cifra "meters" es la longitud que ocupa cada tarima en el sentido del
-// trailer (no el ancho).
-export const SIZE_LANES = {
-  50: 2,
-  55: 2,
-  58: 2,
-  65: 2,
-  75: 2,
-  86: 2,
-  100: 2,
+// ===== Orientación por pulgada — fuente única de verdad =====
+// La orientación es una ETIQUETA informativa (tooltip, PDF, snapshot):
+//   < 65"  -> horizontal
+//   >= 65" -> vertical (65" ya pertenece a este grupo)
+//
+// Modos de carga del contenedor (seleccionables por el usuario arriba del
+// simulador, aplican a la orden/carga completa) — solo 2, a propósito:
+//   ALL_VERTICAL -> comportamiento histórico del proyecto: cada tarima al
+//                   carril con menos metros acumulados (empate → carril
+//                   superior), sin importar la medida. Todas se etiquetan
+//                   "Vertical". Es el modo por defecto.
+//   MIXED        -> "Intercalado" (regla obligatoria por pulgada, no la
+//                   elige el usuario tarima por tarima): las grandes
+//                   (>= 65") y las chicas (< 65") se acomodan en rondas —
+//                   1 grande en un carril, hasta 2 chicas en el otro —
+//                   alternando en cada ronda cuál carril recibe la grande
+//                   (ver packBoxes en lib/packing.js). Nunca hay ancho
+//                   completo / ambos carriles a la vez.
+export const LOAD_MODES = {
+  ALL_VERTICAL: 'allVertical',
+  MIXED: 'mixed',
 };
+
+export const DEFAULT_LOAD_MODE = LOAD_MODES.ALL_VERTICAL;
+
+export const LOAD_MODE_OPTIONS = [
+  { value: LOAD_MODES.ALL_VERTICAL, label: 'Todas verticales' },
+  { value: LOAD_MODES.MIXED, label: 'Intercalado' },
+];
+
+// Única función que decide la etiqueta de orientación — cualquier componente
+// (simulador, tooltip, PDF, snapshot) debe consultarla en vez de repetir la
+// condición.
+export function getPalletOrientation(sizeInches, loadMode = DEFAULT_LOAD_MODE) {
+  if (loadMode === LOAD_MODES.ALL_VERTICAL) return 'vertical';
+  return Number(sizeInches) < 65 ? 'horizontal' : 'vertical';
+}
 
 export const SIZE_OPTIONS = Object.entries(SIZE_TABLE)
   .map(([inches, meters]) => ({
     inches: Number(inches),
     meters,
-    lanes: SIZE_LANES[Number(inches)] || 2,
     label: `${inches}" (${meters} m)`,
   }))
   .sort((a, b) => a.inches - b.inches);

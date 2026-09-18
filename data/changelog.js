@@ -3,6 +3,18 @@
 // para saber si ya se le mostró al usuario el aviso de la última versión).
 export const CHANGELOG = [
   {
+    version: '1.9.0',
+    date: '2026-09-18',
+    title: 'Orientación automática de tarimas por medida + modo Intercalado',
+    changes: [
+      'Cada tarima recibe una orientación automática según su medida: menos de 65" = horizontal, 65" o más = vertical. Es solo informativa (se ve en el tooltip); el carril real depende del modo de carga elegido.',
+      'Nuevo selector arriba del simulador con 2 modos de carga: "Todas verticales" (comportamiento de siempre — cada tarima al carril con menos metros acumulados, sigue siendo el modo por defecto) e "Intercalado" (regla obligatoria: 1 tarima grande en un carril y hasta 2 chicas en el otro, alternando en cada ronda cuál carril recibe la grande).',
+      'El acomodo se recalcula solo al agregar, quitar, cambiar cantidad, cargar una orden o refrescar — nunca al arrastrar una tarima para reordenarla, así una tarima grande nunca cambia de orientación por accidente al moverla.',
+      'El tooltip de cada tarima ahora muestra su orientación (Vertical/Horizontal) además de carril, posición, longitud y orden.',
+      'El PDF sigue mostrando exactamente el mismo acomodo que el simulador, tanto para órdenes nuevas como para el snapshot ya guardado de órdenes históricas.',
+    ],
+  },
+  {
     version: '1.8.0',
     date: '2026-09-17',
     title: 'Navegación de fecha unificada en el Historial',

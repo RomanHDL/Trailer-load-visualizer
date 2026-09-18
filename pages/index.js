@@ -8,7 +8,11 @@ import ChangelogModal from '../components/ChangelogModal';
 import WhatsNewModal from '../components/WhatsNewModal';
 import SimulationModal from '../components/SimulationModal';
 import SavedConfirmationModal from '../components/SavedConfirmationModal';
-import { SIZE_TABLE } from '../data/sizeTable';
+import {
+  SIZE_TABLE,
+  DEFAULT_LOAD_MODE,
+  LOAD_MODE_OPTIONS,
+} from '../data/sizeTable';
 import { packBoxes } from '../lib/packing';
 import { CURRENT_VERSION } from '../data/changelog';
 
@@ -40,6 +44,10 @@ export default function Home() {
   const [toast, setToast] = useState(null);
   const [limitInfo, setLimitInfo] = useState(null);
   const [theme, setTheme] = useState('dark');
+  // Modo de carga del contenedor: aplica a la orden/carga completa actual,
+  // seleccionable arriba del simulador. No se persiste — cada sesión/refresh
+  // arranca en el modo mixto (regla obligatoria por pulgada).
+  const [loadMode, setLoadMode] = useState(DEFAULT_LOAD_MODE);
   const [simulationOrder, setSimulationOrder] = useState(null);
   // Confirmación post-guardado (ventana flotante): { orderNumber, palletCount,
   // totalMeters, order }. Se muestra encima de todo hasta que el usuario
@@ -174,7 +182,7 @@ export default function Home() {
     const probe = [...baseBoxes];
     for (let i = 0; i < cap; i++) {
       probe.push({ inches, meters });
-      if (packBoxes(probe).totalUsed > CAPACITY_LIMIT) break;
+      if (packBoxes(probe, loadMode).totalUsed > CAPACITY_LIMIT) break;
       fits++;
     }
     return fits;
@@ -196,7 +204,7 @@ export default function Home() {
     const fits = maxFitCount(existingBoxes, inches, meters, n);
 
     if (fits < n) {
-      const { totalUsed: currentUsed } = packBoxes(existingBoxes);
+      const { totalUsed: currentUsed } = packBoxes(existingBoxes, loadMode);
       const availableM = Math.max(0, CAPACITY_LIMIT - currentUsed);
       const neededM = n * meters;
 
@@ -316,22 +324,25 @@ export default function Home() {
         orderNumber: draft.orderNumber,
       });
     });
-    const { placed, totalUsed, lane1, lane2 } = packBoxes(sequence);
+    const { placed, totalUsed, lane1, lane2 } = packBoxes(sequence, loadMode);
     return {
       trailerLength: TRAILER_LENGTH,
       capacityLimit: CAPACITY_LIMIT,
       totalUsed,
       lane1,
       lane2,
-      placed: placed.map(({ inches, meters, orderNumber, lane, start, end, full }) => ({
-        inches,
-        meters,
-        orderNumber,
-        lane,
-        start,
-        end,
-        full,
-      })),
+      placed: placed.map(
+        ({ inches, meters, orderNumber, lane, start, end, full, orientation }) => ({
+          inches,
+          meters,
+          orderNumber,
+          lane,
+          start,
+          end,
+          full,
+          orientation,
+        })
+      ),
     };
   }
 
@@ -501,7 +512,7 @@ export default function Home() {
   const allBoxes = [];
   orders.forEach((o) => o.boxes.forEach((b) => allBoxes.push(b)));
   if (draft) draft.boxes.forEach((b) => allBoxes.push(b));
-  const { totalUsed: totalAll } = packBoxes(allBoxes);
+  const { totalUsed: totalAll } = packBoxes(allBoxes, loadMode);
 
   // overflow real: solo se activa al pasar la tolerancia interna
   // (CAPACITY_LIMIT). Mientras tanto, "Disponible" y "Capacidad" se
@@ -655,6 +666,7 @@ export default function Home() {
             onCancel={cancelDraft}
             saving={saving}
             focusSignal={focusSignal}
+            loadMode={loadMode}
           />
         </section>
 
@@ -682,6 +694,21 @@ export default function Home() {
               {refreshing ? 'Refrescando…' : 'Refrescar'}
             </button>
           </div>
+          <div className="view-mode-row load-mode-row">
+            {LOAD_MODE_OPTIONS.map((opt) => (
+              <button
+                key={opt.value}
+                type="button"
+                className={`view-mode-btn ${
+                  loadMode === opt.value ? 'active' : ''
+                }`}
+                onClick={() => setLoadMode(opt.value)}
+                title="Modo de carga del contenedor · aplica a la orden completa"
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
           <TrailerView
             orders={orders}
             draft={draft}
@@ -689,6 +716,7 @@ export default function Home() {
             capacityLimit={CAPACITY_LIMIT}
             onReorderDraft={reorderDraftBox}
             onSwapDraft={swapDraftBoxes}
+            loadMode={loadMode}
           />
           {!loading && orders.length === 0 && !draft && (
             <p className="empty empty-trailer">

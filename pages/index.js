@@ -720,8 +720,27 @@ export default function Home() {
         <section className="panel panel-trailer">
           <div className="panel-header">
             <h2 className="section-title">
-              <span className="section-dot" /> Vista superior del camión
-              <span className="count-badge">{orders.length}</span>
+              <svg
+                className="section-title-icon"
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                aria-hidden="true"
+              >
+                <path
+                  d="M2 7h11v9H2zM13 10h4l3 3v3h-7z"
+                  strokeWidth="1.8"
+                  strokeLinejoin="round"
+                />
+                <circle cx="6.5" cy="17.5" r="1.6" strokeWidth="1.8" />
+                <circle cx="17.5" cy="17.5" r="1.6" strokeWidth="1.8" />
+              </svg>
+              Vista superior del camión
+              <span className="count-badge">
+                {allBoxes.length}{' '}
+                {allBoxes.length === 1 ? 'pallet cargado' : 'pallets cargados'}
+              </span>
             </h2>
             <button
               className="btn-refresh"
@@ -765,11 +784,6 @@ export default function Home() {
             onSwapDraft={swapDraftBoxes}
             loadMode={loadMode}
           />
-          {!loading && orders.length === 0 && !draft && (
-            <p className="empty empty-trailer">
-              Trailer vacío · iniciá una orden arriba ↑
-            </p>
-          )}
         </section>
       </main>
 

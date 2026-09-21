@@ -3,6 +3,18 @@
 // para saber si ya se le mostró al usuario el aviso de la última versión).
 export const CHANGELOG = [
   {
+    version: '1.11.0',
+    date: '2026-09-21',
+    title: 'Pulido visual: menos ruido, el camión aparece antes',
+    changes: [
+      'Se redujo bastante el espacio muerto entre la leyenda y el camión — el simulador aparece mucho más pronto en pantalla, sin scroll de más.',
+      'El contador junto a "Vista superior del camión" ahora muestra pallets cargados reales (ej. "14 pallets cargados") en vez de la cantidad de órdenes, con un pequeño ícono de camión al lado del título.',
+      'El estado de trailer vacío ahora tiene un mensaje más claro en dos líneas ("Trailer vacío" + una línea de ayuda), y se quitó el aviso duplicado que aparecía debajo del simulador.',
+      'El botón "Guardar y generar PDF" tiene un pequeño ícono de documento. Las esquinas de las tarjetas son un poco más redondeadas.',
+      'Es un ajuste puramente visual: el algoritmo de acomodo, el cálculo de metros/porcentaje, el modo Intercalado, el aprovechamiento de huecos, el límite de 15.9 m, el guardado y el PDF siguen funcionando exactamente igual.',
+    ],
+  },
+  {
     version: '1.10.2',
     date: '2026-09-21',
     title: 'Intercalado aprovecha huecos reales antes de seguir su turno',

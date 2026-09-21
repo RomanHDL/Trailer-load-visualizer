@@ -256,6 +256,17 @@ export default function OrderForm({
           onClick={onSave}
           disabled={saving || draft.boxes.length === 0}
         >
+          {!saving && (
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path
+                d="M7 3h7l4 4v14H7z"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinejoin="round"
+              />
+              <path d="M14 3v4h4" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
+            </svg>
+          )}
           {saving ? 'Guardando…' : 'Guardar y generar PDF'}
         </button>
       </div>

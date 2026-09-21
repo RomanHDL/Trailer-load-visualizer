@@ -514,7 +514,7 @@ export default function TrailerView({
 
               {placed.length === 0 && (
                 <div className="trailer-empty">
-                  <svg width="36" height="36" viewBox="0 0 24 24" fill="none">
+                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
                     <path
                       d="M3 7h13v10H3zM16 10h4l1 4v3h-5z M7 17a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM18 17a2 2 0 1 0 0 4 2 2 0 0 0 0-4z"
                       stroke="currentColor"
@@ -522,7 +522,10 @@ export default function TrailerView({
                       strokeLinejoin="round"
                     />
                   </svg>
-                  <span>Trailer vacío</span>
+                  <span className="trailer-empty-title">Trailer vacío</span>
+                  <span className="trailer-empty-sub">
+                    Inicia una orden y agrega tarimas para visualizar la carga.
+                  </span>
                 </div>
               )}
             </div>

@@ -3,6 +3,16 @@
 // para saber si ya se le mostró al usuario el aviso de la última versión).
 export const CHANGELOG = [
   {
+    version: '1.10.1',
+    date: '2026-09-21',
+    title: 'Intercalado aprovecha el hueco real del otro carril',
+    changes: [
+      'En el modo "Intercalado", si el carril que le toca a una tarima ya se pasaría del límite de 15.9 m pero el otro carril todavía tiene espacio real para ella, ahora se coloca automáticamente en ese otro carril en vez de forzar el sobrecupo innecesariamente.',
+      'Esto solo aplica cuando el carril preferido específicamente se pasa del límite y el otro sí cabe — si ambos caben, se sigue respetando la elección normal de Intercalado (nunca "elegir siempre el carril más corto"); si ninguno cabe, se conserva el sobrecupo de siempre.',
+      'No cambia el algoritmo de acomodo por tamaño, la orientación, el límite de 15.9 m, el aviso de superar 100%, ni el resto del sistema.',
+    ],
+  },
+  {
     version: '1.10.0',
     date: '2026-09-18',
     title: 'Porcentaje de capacidad real + aviso al superar el 100%',

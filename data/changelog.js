@@ -3,6 +3,16 @@
 // para saber si ya se le mostró al usuario el aviso de la última versión).
 export const CHANGELOG = [
   {
+    version: '1.10.2',
+    date: '2026-09-21',
+    title: 'Intercalado aprovecha huecos reales antes de seguir su turno',
+    changes: [
+      'En el modo "Intercalado", antes de colocar una tarima en el carril que le toca por turno, ahora se revisa si ya existe un hueco real (el espacio que le queda a cualquiera de los 2 carriles) donde esa tarima quepa mejor — si cabe en uno o los dos, se usa el hueco más ajustado (best fit) en vez de dejarlo sin aprovechar.',
+      'Si ningún hueco real la acepta, sigue exactamente igual que antes: el turno normal de Intercalado y, si ese carril se pasara del límite, la mejora anterior de usar el otro carril.',
+      'No cambia la orientación automática por pulgadas, el límite de 15.9 m, el aviso de superar 100%, ni el resto del sistema.',
+    ],
+  },
+  {
     version: '1.10.1',
     date: '2026-09-21',
     title: 'Intercalado aprovecha el hueco real del otro carril',

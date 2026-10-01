@@ -3,6 +3,15 @@
 // para saber si ya se le mostró al usuario el aviso de la última versión).
 export const CHANGELOG = [
   {
+    version: '1.11.1',
+    date: '2026-10-01',
+    title: 'Actualización de seguridad',
+    changes: [
+      'Se actualizaron las librerías internas de la app (Next.js, React, generador de PDF y conexión a base de datos) a versiones sin vulnerabilidades de seguridad conocidas.',
+      'No cambia nada en el uso: el acomodo de tarimas, el modo Intercalado, el límite de 15.9 m, el guardado, el historial y el PDF funcionan exactamente igual.',
+    ],
+  },
+  {
     version: '1.11.0',
     date: '2026-09-21',
     title: 'Pulido visual: menos ruido, el camión aparece antes',
